@@ -1,0 +1,11 @@
+---
+import SideIcon from './SideIcon.astro';
+interface Props {trips:Array<{location:string;minutes:number;transport:string}>; class?:string}
+const {trips,class:className}=Astro.props;
+---
+<section class:list={['sidebar-panel','destination-info',className]} aria-label="Estimasi perjalanan destinasi">
+ <h2><SideIcon kind="clock"/>Estimasi perjalanan</h2>
+ <p class="destination-origin">Dari BCIFT · Batam Center</p>
+ <ul class="destination-locations">{trips.map(trip=><li><SideIcon kind="pin"/><div><h3>{trip.location}</h3><p><strong>± {trip.minutes} menit</strong><span>{trip.transport}</span></p></div></li>)}</ul>
+ <p class="sidebar-note">Waktu tempuh merupakan perkiraan dan dapat berubah sesuai kondisi perjalanan.</p>
+</section>

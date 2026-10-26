@@ -1,0 +1,43 @@
+---
+import Base from '../../layouts/Base.astro';
+import Card from '../../components/Card.astro';
+import HeroWave from '../../components/HeroWave.astro';
+import Banner from '../../components/Banner.astro';
+import {posts,href} from '../../lib/posts';
+import {PUBLIC_CATEGORIES,categoryLabel} from '../../lib/categories.mjs';
+const all=await posts();const feature=all[0];
+const categories=['All stories',...PUBLIC_CATEGORIES];
+---
+<Base title="Batam Travel Guides & Ferry Tips" description="Explore the BCIFT travel journal for Batam travel inspiration, ferry guides, and practical terminal tips." noindex={!all.some(p=>!p.data.draft)}><section class="blog-hero"><img src="/images/terminal.webp" alt="Waterfront at Batam Center International Ferry Terminal" width="1400" height="450" fetchpriority="high"/><div class="hero-copy"><h1>Blog</h1><p>Travel tips, destination guides, and the latest updates<br/>for your journey between Singapore and Batam.</p></div><HeroWave/></section><div class="wrap"><div class="toolbar" id="filters" hidden><div class="filters" role="group" aria-label="Article category">{categories.map((c,i)=><button data-filter={c} class:list={{selected:i===0}} aria-pressed={i===0}>{c==='All stories'?'All':categoryLabel(c)}</button>)}</div><input class="search" type="search" placeholder="Search blog…" aria-label="Search stories"/></div><div class="section-heading"><h2>Latest stories</h2><span id="count" aria-live="polite">{all.length} stories</span></div><section class="grid" id="stories" aria-label="Articles">{all.map(p=><Card post={p}/>)}<p id="empty" class="empty" hidden={all.length>0}>Stories are on their way. Come back soon for travel inspiration.</p></section><Banner/></div></Base>
+<script>
+import {matchesCategory} from '../../lib/categories.mjs';
+const controls=document.querySelector<HTMLElement>('#filters')!;controls.hidden=false;
+const search=document.querySelector<HTMLInputElement>('.search')!;
+const group=document.querySelector<HTMLElement>('.filters')!;
+const buttons=[...document.querySelectorAll<HTMLButtonElement>('[data-filter]')];
+const cards=[...document.querySelectorAll<HTMLElement>('#stories .card')];
+const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
+let active='All stories';
+const marker=document.createElement('span');marker.className='filter-marker';marker.setAttribute('aria-hidden','true');group.prepend(marker);group.classList.add('animated-filters');
+function positionMarker(){const button=buttons.find(b=>b.dataset.filter===active)!;marker.style.width=`${button.offsetWidth}px`;marker.style.height=`${button.offsetHeight}px`;marker.style.transform=`translate(${button.offsetLeft}px,${button.offsetTop}px)`;}
+new ResizeObserver(positionMarker).observe(group);positionMarker();
+function filter(){
+ let count=0;
+ const query=search.value.trim().toLowerCase();
+ const entering:HTMLElement[]=[];
+ cards.forEach(card=>{
+  const visible=matchesCategory(JSON.parse(card.dataset.categories??'[]'),active)&&(card.dataset.title??'').includes(query);
+  if(visible&&card.hidden)entering.push(card);
+  card.getAnimations().forEach(animation=>animation.cancel());
+  card.hidden=!visible;
+  if(visible)count++;
+ });
+ if(!reduced.matches)entering.forEach(card=>card.animate([{opacity:0},{opacity:1}],{duration:180,easing:'ease-out'}));
+ document.querySelector('#count')!.textContent=`${count} stories`;
+ const empty=document.querySelector<HTMLElement>('#empty')!;
+ empty.hidden=count>0;empty.textContent='No stories found. Try another keyword or category.';
+}
+buttons.forEach(button=>button.addEventListener('click',()=>{if(active===button.dataset.filter)return;active=button.dataset.filter!;buttons.forEach(b=>{b.classList.toggle('selected',b===button);b.setAttribute('aria-pressed',String(b===button))});positionMarker();filter()}));
+let searchFrame=0;
+search.addEventListener('input',()=>{cancelAnimationFrame(searchFrame);searchFrame=requestAnimationFrame(filter);});
+</script>

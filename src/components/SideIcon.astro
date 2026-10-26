@@ -1,0 +1,6 @@
+---
+interface Props {kind?:string}
+const {kind='info'}=Astro.props;
+const paths:Record<string,string>={list:'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',info:'M12 11v6M12 7h.01',link:'M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2',article:'M14 2H5v20h14V7l-5-5v5h5M8 12h8M8 16h8',pin:'M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0ZM12 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6',clock:'M12 6v6l4 2',route:'m12 3 10 7-10 7L2 10l10-7Zm-8 12 8 6 8-6'};
+---
+<svg class="side-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{(kind==='info'||kind==='clock')&&<circle cx="12" cy="12" r="10"/>}<path d={paths[kind]??paths.info}/></svg>
