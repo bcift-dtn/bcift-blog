@@ -1,7 +1,7 @@
 import {mediaUrl} from '../../../../lib/media-url.mjs';
 import type { APIRoute } from 'astro';
 import {randomBytes} from 'node:crypto';
-import {db,hasAdmin,ensureConfiguredAccounts,login,logout,currentUser,saveArticle,cleanBody,inviteMember,invitationInfo,acceptInvitation,updateMember,audit} from '../../../../server/cms.mjs';
+import {db,hasAdmin,ensureConfiguredAccounts,login,logout,currentUser,saveArticle,cleanBody,inviteMember,invitationInfo,acceptInvitation,updateMember,createTeamAccount,audit} from '../../../../server/cms.mjs';
 import {readImageFocus} from '../../../../lib/image-focus.mjs';
 import {readCategories} from '../../../../lib/categories.mjs';
 import {readDestinationTrips} from '../../../../lib/destination-trips.mjs';
@@ -21,7 +21,7 @@ export const ALL:APIRoute=async({request,params,cookies,clientAddress})=>{
   const user=currentUser(token);
   if(path==='session'&&method==='GET')return json({authenticated:!!user,user:user?{id:user.id,email:user.email,role:user.role}:null,setup:!hasAdmin()});
   if(path==='logout'&&method==='POST'){logout(token);logout(pending);cookies.delete('bcift_session',{path:'/blog/'});cookies.delete('bcift_pending',{path:'/blog/'});return json({ok:true});}
-  if(path==='setup')return json({error:'Pendaftaran melalui web ditutup. Buat akun melalui terminal server.'},403);
+  if(path==='setup')return json({error:'Pendaftaran umum ditutup. Akun dibuat oleh Admin melalui Tim & akses.'},403);
   if(path==='login'&&method==='POST'){
    const data=await input(),email=String(data.email||''),password=String(data.password||'');
    if(password.length>128)throw new Error('Password terlalu panjang.');
@@ -32,7 +32,7 @@ export const ALL:APIRoute=async({request,params,cookies,clientAddress})=>{
   if(path.startsWith('mfa/'))return json({error:'Tidak ditemukan.'},404);
   if(!user)return json({error:'Silakan login kembali.'},401);
   if(path==='articles'&&method==='GET')return json(db.prepare('SELECT * FROM articles ORDER BY updated_at DESC').all().map((article:any)=>({...article,image_focus:readImageFocus(article.image_focus),categories:readCategories(article.categories,article.category),destination_trips:readDestinationTrips(article.destination_trips),image:mediaUrl(article.image),body:cleanBody(article.body)})));
-  if(path==='articles'&&method==='POST'){const data=await input(250000);if(data.status==='published'&&user.role!=='admin')return json({error:'Editor menyimpan draft. Penerbitan dilakukan admin.'},403);const previous=data.id?db.prepare('SELECT status FROM articles WHERE id=?').get(Number(data.id)) as {status:string}|undefined:null;if(previous?.status==='published'&&user.role!=='admin')return json({error:'Perubahan artikel yang sudah terbit hanya dapat dilakukan admin.'},403);const result=saveArticle(data,data.id?Number(data.id):undefined);audit(user.id,'article.saved',result.slug);return json(result);}
+  if(path==='articles'&&method==='POST'){const data=await input(250000);if(data.status==='published'&&user.role!=='admin')return json({error:'Editorial/Penulis menyimpan draft. Penerbitan dilakukan Admin.'},403);const previous=data.id?db.prepare('SELECT status FROM articles WHERE id=?').get(Number(data.id)) as {status:string}|undefined:null;if(previous?.status==='published'&&user.role!=='admin')return json({error:'Perubahan artikel yang sudah terbit hanya dapat dilakukan admin.'},403);const result=saveArticle(data,data.id?Number(data.id):undefined);audit(user.id,'article.saved',result.slug);return json(result);}
   if(/^articles\/\d+$/.test(path)&&method==='DELETE'){if(user.role!=='admin')return json({error:'Hanya admin yang dapat menghapus artikel.'},403);db.prepare('DELETE FROM articles WHERE id=?').run(Number(path.split('/')[1]));audit(user.id,'article.deleted',path);return json({ok:true});}
   if(path==='upload'&&method==='POST'){
    const bytes=Buffer.from(await request.arrayBuffer());if(!bytes.length||bytes.length>5*1024*1024)throw new Error('Gambar maksimal 5 MB.');
@@ -44,6 +44,7 @@ export const ALL:APIRoute=async({request,params,cookies,clientAddress})=>{
    if(path==='team'&&method==='GET')return json({members:db.prepare('SELECT id,email,role,active,(managed_hash IS NOT NULL) AS managed FROM admins ORDER BY id').all(),invitations:db.prepare('SELECT email,role,purpose,expires FROM invitations WHERE expires>?').all(Date.now())});
    if(path==='audit'&&method==='GET')return json(db.prepare('SELECT audit.id,audit.event,audit.subject,audit.created_at,admins.email AS actor FROM audit LEFT JOIN admins ON admins.id=audit.actor ORDER BY audit.id DESC LIMIT 100').all());
    if(method!=='GET'&&Date.now()-user.verifiedAt>15*60000)return json({error:'Untuk mengubah akses tim, login ulang (verifikasi berlaku 15 menit).'},403);
+   if(path==='team/create'&&method==='POST'){const created=createTeamAccount(user,await input());return json(created,201);}
    if(path==='team/invite')return json({error:'Pembuatan akun hanya melalui terminal server.'},403);
    if(path==='team/reset-password'&&method==='POST'){const data=await input();const reset=inviteMember(user,data.email,undefined,'reset');return json({token:reset,expiresInHours:24});}
    if(path==='team/revoke'&&method==='POST'){const data=await input();db.prepare('DELETE FROM invitations WHERE email=?').run(String(data.email).toLowerCase().trim());audit(user.id,'invitation.revoked',data.email);return json({ok:true});}

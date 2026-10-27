@@ -4,7 +4,7 @@ CMS blog Astro + Node + SQLite. Template tampilan, artikel dan SEO BCIFT tetap t
 
 ## Login
 
-Akun admin tetap dikonfigurasi pada `src/server/internal-accounts.mjs`. Gunakan email/password awal yang sudah diberikan, lalu langsung masuk ke `/blog/admin/`. Tidak ada authenticator, kode OTP atau langkah aktivasi tambahan. Pendaftaran melalui web ditutup.
+Akun admin tetap dikonfigurasi pada `src/server/internal-accounts.mjs`. Gunakan akun yang sudah ada untuk masuk ke `/blog/admin/`. Admin dapat membuat akun tambahan melalui **Tim & akses → Buat akun internal** dengan email, password awal dan pilihan Admin atau Editorial/Penulis. Anggota baru langsung dapat login. Akun lama tetap dipertahankan. Tidak ada authenticator, kode OTP atau langkah aktivasi tambahan. Pendaftaran melalui web ditutup.
 
 Password asli tidak ditulis ke source code: file konfigurasi memuat email, hash scrypt, peran (admin/editor), dan enabled. File ini hanya dipakai server, tidak masuk bundle browser. Untuk mengganti password, jalankan `npm run cms:password-hash` di terminal, lalu salin hash ke konfigurasi. Untuk menambah akun tetap, tambahkan entri pada file tersebut. Restart server atau rebuild/restart saat produksi.
 
@@ -36,7 +36,7 @@ Login langsung menggunakan email dan password. Password di-hash scrypt, sesi dis
 
 Token CSRF bertanda tangan dikirim otomatis oleh dashboard; perbedaan alamat browser/server akibat tunnel tidak memblokir login. Token lama diperbarui otomatis dan request dicoba ulang sekali. Tidak ada token yang perlu diisi pengguna. Permintaan tanpa bukti CSRF sah ditolak.
 
-Admin dapat menerbitkan, menarik dan menghapus artikel serta mengelola status/peran akun yang tidak dikelola kode. Editor menulis draft dan upload gambar; tidak dapat menerbitkan, menghapus, mengubah artikel terbit atau mengelola anggota. Pemeriksaan peran berlaku di API. Penonaktifan akun/perubahan peran mencabut sesinya. Minimal satu admin aktif dipertahankan oleh pengaturan dashboard.
+Admin dapat membuat akun internal, menerbitkan, menarik dan menghapus artikel serta mengelola status/peran akun yang tidak dikelola kode. Editorial/Penulis (nilai internal `editor`) menulis draft dan upload gambar; tidak dapat menerbitkan, menghapus, mengubah artikel terbit atau mengelola anggota. Pemeriksaan peran berlaku di API. Penonaktifan akun/perubahan peran mencabut sesinya. Minimal satu admin aktif dipertahankan oleh pengaturan dashboard.
 
 Link reset password hanya untuk akun non-konfigurasi yang sudah ada, berlaku 24 jam dan satu kali pakai. Bagikan melalui kanal internal pribadi; belum ada pengiriman email otomatis. Untuk akun Dari kode, ubah hash di file konfigurasi. Aktivitas login dan perubahan artikel/anggota dicatat. Untuk pengaturan akses sensitif, login ulang diperlukan jika login sebelumnya lebih dari 15 menit.
 

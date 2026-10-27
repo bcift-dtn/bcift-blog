@@ -39,16 +39,22 @@ export function passwordHash(password) {const salt=randomBytes(16).toString('hex
 export function passwordMatches(password,hash){const [salt,expected]=hash.split(':');return timingSafeEqual(scryptSync(password,salt,64),Buffer.from(expected,'hex'));}
 export function audit(actor,event,subject=''){db.prepare('INSERT INTO audit(actor,event,subject,created_at) VALUES(?,?,?,?)').run(actor??null,event,String(subject).slice(0,254),new Date().toISOString());}
 export const hasAdmin=()=>!!db.prepare('SELECT id FROM admins LIMIT 1').get();
-// Only local server tooling imports this function. No HTTP endpoint provisions accounts.
-export function createAccount(email,password,role='editor'){
+// Shared account insertion; dashboard calls require an authenticated admin first.
+export function createAccount(email,password,role='editor',context=null){
  email=normalizeEmail(email);checkEmail(email);checkPassword(password);
- if(!['admin','editor'].includes(role))throw new Error('Peran harus admin atau editor.');
+ if(!['admin','editor'].includes(role))throw new Error('Peran harus Admin atau Editorial/Penulis.');
  const hash=passwordHash(password);db.exec('BEGIN IMMEDIATE');try{
   if(!hasAdmin()&&role!=='admin')throw new Error('Akun pertama harus berperan Admin.');
   if(db.prepare('SELECT id FROM admins WHERE email=?').get(email))throw new Error('Email sudah memiliki akun.');
   const id=Number(db.prepare('INSERT INTO admins(email,password,role) VALUES(?,?,?)').run(email,hash,role).lastInsertRowid);
-  audit(id,'account.created.locally',email);db.exec('COMMIT');return {id,email,role};
+  audit(context?.actorId??id,context?'account.created':'account.created.locally',email);db.exec('COMMIT');return {id,email,role};
  }catch(e){db.exec('ROLLBACK');throw e;}
+}
+export function createTeamAccount(actor,input){
+ requireAdmin(actor);
+ const {email,password,confirmation,role='editor'}=input;
+ if(password!==confirmation)throw new Error('Konfirmasi password tidak sama.');
+ return createAccount(email,password,role,{actorId:actor.id});
 }
 export function createAdmin(email,password){if(hasAdmin())throw new Error('Admin pertama sudah dibuat. Gunakan perintah akun lokal untuk anggota berikutnya.');return createAccount(email,password,'admin');}
 export function ensureConfiguredAccounts(accounts=INTERNAL_ACCOUNTS){

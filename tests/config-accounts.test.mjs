@@ -22,4 +22,11 @@ test('code configuration never overwrites unrelated existing accounts',()=>{
  assert.throws(()=>cms.ensureConfiguredAccounts([{email:'existing@example.com',passwordHash:config[0].passwordHash,role:'admin',enabled:true}]),/sudah dipakai/);
  assert.equal(cms.db.prepare('SELECT role FROM admins WHERE email=?').get('existing@example.com').role,'editor');
 });
+test('creating a dashboard account keeps configured and existing accounts intact',()=>{
+ const before=cms.db.prepare('SELECT * FROM admins ORDER BY id').all();const actor={id:before.find(user=>user.email==='fixed@example.com').id,role:'admin'};
+ const member=cms.createTeamAccount(actor,{email:'dashboard@example.com',password:'Dashboard-only-password!',confirmation:'Dashboard-only-password!',role:'editor'});assert.equal(member.role,'editor');assert.equal(cms.db.prepare('SELECT managed_hash FROM admins WHERE id=?').get(member.id).managed_hash,null);
+ for(const user of before)assert.deepEqual(cms.db.prepare('SELECT * FROM admins WHERE id=?').get(user.id),user);
+ assert.throws(()=>cms.createTeamAccount({id:member.id,role:'editor'},{email:'blocked@example.com',password:'Another-password!',confirmation:'Another-password!',role:'admin'}),/admin/);
+});
+
 test.after(()=>{cms.db.close();rmSync(dir,{recursive:true,force:true});});

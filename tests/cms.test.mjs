@@ -79,7 +79,7 @@ test('HTTP: direct password login, registration closed, roles, revocation and re
  async function ownerLogin(requestOrigin=origin){const r=await call('login','POST',{email:'owner@example.com',password},'',requestOrigin);assert.equal(r.status,200,await r.clone().text());assert.equal((await r.clone().json()).mfa,undefined);assert.equal((await call('articles','GET',null,cookieOf(r))).status,200);return r;}
  try{
   let ready=false;for(let i=0;i<100;i++){try{if((await fetch(origin+'/blog/admin/')).ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,150));}assert.ok(ready,log);
-  const bootstrap=await fetch(origin+'/blog/admin/');const html=await bootstrap.text();csrf=html.match(/name="bcift-csrf" content="([^"]+)"/)?.[1];csrfCookie=bootstrap.headers.get('set-cookie').match(/bcift_csrf=[^;,]+/)[0];assert.ok(csrf);assert.match(html,/INTERNAL TEAM/);assert.ok(!html.includes('id="team-toggle"'));assert.ok(!html.includes('id="mfa-panel"'));assert.ok(!html.includes('id="recovery-panel"'));
+  const bootstrap=await fetch(origin+'/blog/admin/');const html=await bootstrap.text();csrf=html.match(/name="bcift-csrf" content="([^"]+)"/)?.[1];csrfCookie=bootstrap.headers.get('set-cookie').match(/bcift_csrf=[^;,]+/)[0];assert.ok(csrf);assert.match(html,/INTERNAL TEAM/);assert.ok(!html.includes('id="team-toggle"'));assert.ok(!html.includes('id="create-account"'));assert.ok(!html.includes('id="mfa-panel"'));assert.ok(!html.includes('id="recovery-panel"'));
   assert.equal((await call('articles')).status,401);assert.equal((await call('login','POST',{email:'owner@example.com',password},'','https://evil.example')).status,403);
   assert.equal((await call('login','POST',{email:'outside@example.com',password})).status,400);
   const verified=await ownerLogin();const adminCookie=cookieOf(verified);const editorHtml=await(await fetch(origin+'/blog/admin/',{headers:{Cookie:adminCookie}})).text();for(const name of ['Destination','Informasi Terminal','Informasi BCIFT'])assert.ok(editorHtml.includes('value="'+name+'"'));assert.match(verified.headers.get('set-cookie'),/HttpOnly/i);
@@ -99,6 +99,16 @@ test('HTTP: direct password login, registration closed, roles, revocation and re
    setCategories(['Destination','Explore Batam']);w.document.querySelector('.remove-destination').click();assert.equal(w.document.querySelectorAll('.destination-row').length,0);
   }finally{dom.window.close();}
 
+  const teamDom=new JSDOM(editorHtml,{url:origin+'/blog/admin/',runScripts:'outside-only'});let createdFromForm=null;
+  try{
+   const w=teamDom.window;w.HTMLElement.prototype.scrollIntoView=()=>{};const members=[{id:1,email:'owner@example.com',role:'admin',active:true,managed:false},{id:2,email:'fixed@example.com',role:'admin',active:true,managed:true}];
+   w.cmsFetch=async(url,options={})=>{if(url.endsWith('/team/create/')){createdFromForm=JSON.parse(options.body);const account={id:3,email:createdFromForm.email,role:createdFromForm.role,active:true,managed:false};members.push(account);return Response.json(account,{status:201});}if(url.endsWith('/team/'))return Response.json({members,invitations:[]});if(url.endsWith('/session/'))return Response.json({user:{id:1}});if(url.endsWith('/audit/'))return Response.json([]);throw Error('Unexpected team request');};
+   w.eval(stripTypeScriptTypes(readFileSync('src/scripts/team.ts','utf8').replace(/^import .*;\r?$/gm,'')));w.document.getElementById('team-toggle').click();await new Promise(r=>setTimeout(r,0));
+   const form=w.document.getElementById('create-account');assert.equal(form.elements.namedItem('role').value,'editor');assert.equal(form.elements.namedItem('role').options.length,2);
+   form.elements.namedItem('email').value='new-writer@example.com';form.elements.namedItem('password').value=password;form.elements.namedItem('confirmation').value='Wrong-confirmation';form.dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));assert.equal(createdFromForm,null);
+   form.elements.namedItem('confirmation').value=password;form.dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await new Promise(r=>setTimeout(r,0));assert.equal(createdFromForm.role,'editor');assert.equal(createdFromForm.email,'new-writer@example.com');assert.equal(form.elements.namedItem('password').value,'');assert.equal(form.elements.namedItem('confirmation').value,'');assert.match(w.document.getElementById('create-account-notice').textContent,/berhasil dibuat/);assert.match(w.document.getElementById('members').textContent,/new-writer@example.com/);assert.match(w.document.getElementById('members').textContent,/fixed@example.com/);assert.match(w.document.getElementById('members').textContent,/Editorial\/Penulis/);
+  }finally{teamDom.window.close();}
+
   const dynamicTunnel='https://new-preview-4321.asse.devtunnels.ms';const dynamic=await call('login','POST',{email:'owner@example.com',password},'',dynamicTunnel);assert.equal(dynamic.status,200,await dynamic.clone().text());assert.match(dynamic.headers.get('set-cookie'),/Secure/i);
   const rejected=await fetch(origin+'/blog/admin/api/login/',{method:'POST',headers:{Origin:dynamicTunnel,Cookie:csrfCookie,'Content-Type':'application/json','X-BCIFT-CSRF':'invalid'},body:JSON.stringify({email:'owner@example.com',password})});assert.equal(rejected.status,403);
   const tunnelLogin=await ownerLogin(tunnel);assert.match(tunnelLogin.headers.get('set-cookie'),/Secure/i);
@@ -107,12 +117,27 @@ test('HTTP: direct password login, registration closed, roles, revocation and re
   assert.equal((await call('setup')).status,403);
   assert.equal((await call('team/invite','POST',{email:'outsider@example.com',role:'admin'},adminCookie)).status,403);
   assert.equal(cms.db.prepare('SELECT id FROM admins WHERE email=?').get('outsider@example.com'),undefined);
-  const created=cms.createAccount('writer@example.com',password,'editor');assert.equal(created.role,'editor');
+  const previousMembers=cms.db.prepare('SELECT id,email,password,role,active,managed_hash FROM admins ORDER BY id').all();
+  assert.equal((await call('team/create','POST',{email:'anonymous@example.com',password,confirmation:password,role:'admin'})).status,401);
+  const malformed=[{email:'bad-email',password,confirmation:password,role:'editor'},{email:'bad-role@example.com',password,confirmation:password,role:'owner'},{email:'short@example.com',password:'short',confirmation:'short',role:'editor'},{email:'mismatch@example.com',password,confirmation:'different-password',role:'editor'}];
+  const countBefore=cms.db.prepare('SELECT count(*) AS count FROM admins').get().count;
+  for(const data of malformed)assert.equal((await call('team/create','POST',data,adminCookie)).status,400);
+  assert.equal(cms.db.prepare('SELECT count(*) AS count FROM admins').get().count,countBefore);
+  const staleKey=createHash('sha256').update(adminCookie.split('=')[1]).digest('hex');cms.db.prepare('UPDATE sessions SET verified_at=? WHERE token=?').run(Date.now()-16*60000,staleKey);
+  assert.equal((await call('team/create','POST',{email:'stale@example.com',password,confirmation:password,role:'admin'},adminCookie)).status,403);cms.db.prepare('UPDATE sessions SET verified_at=? WHERE token=?').run(Date.now(),staleKey);
+  const createResponse=await call('team/create','POST',{email:'WRITER@example.com',password,confirmation:password,role:'editor'},adminCookie);assert.equal(createResponse.status,201,await createResponse.clone().text());const created=await createResponse.json();assert.equal(created.role,'editor');assert.equal(created.email,'writer@example.com');assert.equal(created.password,undefined);assert.equal(created.passwordHash,undefined);
+  assert.ok(cms.db.prepare('SELECT password FROM admins WHERE id=?').get(created.id).password!==password);
+  const adminResponse=await call('team/create','POST',{email:'new-admin@example.com',password,confirmation:password,role:'admin'},adminCookie);assert.equal(adminResponse.status,201);assert.equal((await adminResponse.json()).role,'admin');
+  const newAdminLogin=await call('login','POST',{email:'new-admin@example.com',password});assert.equal(newAdminLogin.status,200);assert.equal((await call('team','GET',null,cookieOf(newAdminLogin))).status,200);
+  for(const existing of previousMembers){assert.deepEqual(cms.db.prepare('SELECT id,email,password,role,active,managed_hash FROM admins WHERE id=?').get(existing.id),existing);assert.equal((await call('team/create','POST',{email:existing.email,password:'Replacement-password!',confirmation:'Replacement-password!',role:'editor'},adminCookie)).status,400);assert.deepEqual(cms.db.prepare('SELECT id,email,password,role,active,managed_hash FROM admins WHERE id=?').get(existing.id),existing);}
+  assert.equal(cms.db.prepare('SELECT actor FROM audit WHERE event=? AND subject=?').get('account.created','writer@example.com').actor,previousMembers.find(m=>m.email==='owner@example.com').id);
+  const createAudit=JSON.stringify(cms.db.prepare("SELECT * FROM audit WHERE event='account.created'").all());assert.equal(createAudit.includes(password),false);
+
   assert.throws(()=>cms.createAccount('WRITER@example.com',password,'admin'),/sudah/);
   const accepted=await call('login','POST',{email:'writer@example.com',password});assert.equal(accepted.status,200);
   const writerCookie=cookieOf(accepted);assert.equal((await call('articles','GET',null,writerCookie)).status,200);
   assert.equal((await call('mfa/enroll','POST',{},writerCookie)).status,404);assert.equal((await call('mfa/verify','POST',{code:'123456'},writerCookie)).status,404);
-  assert.equal((await call('team','GET',null,writerCookie)).status,403);assert.equal((await call('team/invite','POST',{email:'intruder@example.com'},writerCookie)).status,403);
+  assert.equal((await call('team','GET',null,writerCookie)).status,403);assert.equal((await call('team/create','POST',{email:'escalate@example.com',password,confirmation:password,role:'admin'},writerCookie)).status,403);assert.equal(cms.db.prepare('SELECT id FROM admins WHERE email=?').get('escalate@example.com'),undefined);assert.equal((await call('team/invite','POST',{email:'intruder@example.com'},writerCookie)).status,403);
   let r=await call('articles','POST',{title:'Dashboard test article',category:'Informasi Terminal',body:'<h2>Before boarding</h2><p>A complete article with enough useful content for this publishing workflow test.</p>',status:'draft'},writerCookie);assert.equal(r.status,200,await r.clone().text());let article=await r.json();assert.equal(article.category,'Informasi Terminal');
   assert.equal((await fetch(origin+'/blog/'+article.slug+'/')).status,404);assert.equal((await fetch(origin+'/blog/'+article.slug+'/?preview=1')).status,404);
   const preview=await fetch(origin+'/blog/'+article.slug+'/?preview=1',{headers:{Cookie:writerCookie}});assert.equal(preview.status,200);assert.match(await preview.text(),/noindex/);
