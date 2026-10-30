@@ -13,8 +13,7 @@ async function load(){
  $('audit-list').replaceChildren(...audit.map((item:any)=>{const p=document.createElement('p');p.textContent=new Date(item.created_at).toLocaleString('id-ID')+' · '+(item.actor||'Sistem')+' · '+item.event+' · '+item.subject;return p;}));
 }
 if($('team-toggle')){
- $('team-toggle').onclick=()=>{$('team-view').hidden=false;load().then(()=>$('team-view').scrollIntoView({behavior:'smooth'})).catch(error);};
- $('team-close').onclick=()=>{$('team-view').hidden=true;};
+ document.addEventListener('studio:view',event=>{if((event as CustomEvent).detail.view==='team')load().catch(error);});
  const createForm=$<HTMLFormElement>('create-account'),createSubmit=$<HTMLButtonElement>('create-account-submit'),createNotice=$('create-account-notice');
  const password=createForm.elements.namedItem('password') as HTMLInputElement,confirmation=createForm.elements.namedItem('confirmation') as HTMLInputElement;
  function validateConfirmation(){confirmation.setCustomValidity(confirmation.value&&password.value!==confirmation.value?'Konfirmasi password tidak sama.':'');}

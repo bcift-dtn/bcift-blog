@@ -70,3 +70,12 @@ header{height:76px;padding:10px 48px}.brand img{width:auto;height:48px;object-fi
 
 /* Article covers share the listing hero dimensions and wave. */
 .article-cover-hero:after{content:none}.article-cover-hero>img{object-position:var(--cover-x,50%) var(--cover-y,60%)}@media(max-width:560px){.article-cover-hero>img{object-position:var(--cover-mobile-x,50%) var(--cover-mobile-y,60%)}}
+
+/* Full-image thumbnails keep infographic text visible, including on hover. */
+.card:hover .card-image-contain .photo{transform:none}
+
+/* Destination travel time shares the quiet metadata styling of the publication date. */
+.card .card-meta{flex-wrap:wrap;gap:6px 14px}
+.card-meta-date,.card-trip-time{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;line-height:1.5}
+.card-meta-date>svg,.card-trip-time>svg{flex-shrink:0}
+.card-trip-time{font-variant-numeric:tabular-nums}

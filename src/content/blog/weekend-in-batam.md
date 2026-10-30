@@ -4,7 +4,7 @@ description: 'Slow mornings, coastal views, and inspiration for your next island
 category: Explore Batam
 image: /images/beach.jpg
 imageAlt: Coastal destination inspiration - illustrative photograph
-draft: false
+draft: true
 ---
 
 > Template preview — add your final article and approved photographs before publishing.

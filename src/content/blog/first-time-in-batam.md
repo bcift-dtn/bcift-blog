@@ -4,7 +4,7 @@ description: 'A fresh perspective on planning your first visit, just across the 
 category: Explore Batam
 image: /images/island.jpg
 imageAlt: Coastal destination inspiration - illustrative photograph
-draft: false
+draft: true
 ---
 
 > Template preview — add your final article and approved photographs before publishing.

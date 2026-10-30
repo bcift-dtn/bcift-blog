@@ -44,7 +44,7 @@ Link reset password hanya untuk akun non-konfigurasi yang sudah ada, berlaku 24 
 
 Tulis lewat editor visual: paragraf, H2/H3, tebal, miring, daftar, kutipan, tautan dan gambar. Upload JPG/PNG/WebP maksimal 5 MB. Lengkapi alt gambar sebelum publish. Draft tetap privat dan hanya dapat dipratinjau setelah login. Artikel terbit langsung masuk blog dan sitemap tanpa build ulang.
 
-Judul SEO opsional; fallback judul artikel. Ringkasan menjadi meta description. Saran kata kunci berdasarkan judul dan bisa diedit, bukan riset volume pencarian/janji ranking. Canonical, Open Graph/Twitter, schema artikel/breadcrumb dan tanggal otomatis. Enam Markdown lama tetap arsip draft; tiga artikel di homepage belum dikerjakan sesuai permintaan.
+Judul SEO opsional; fallback judul artikel. Ringkasan menjadi meta description. Saran kata kunci berdasarkan judul dan bisa diedit, bukan riset volume pencarian/janji ranking. Canonical, Open Graph/Twitter, schema artikel/breadcrumb dan tanggal otomatis. Enam Markdown lama tetap arsip draft; pilihan tiga artikel halaman utama diatur melalui menu Halaman utama.
 
 ## Data dan hosting
 
@@ -59,3 +59,26 @@ Tambahkan https://bcift.co.id/blog/sitemap.xml ke robots.txt situs utama dan Sea
 `npm test` memakai database sementara terisolasi: login password langsung tanpa 2FA, sesi idle/logout, pencabutan akun, peran server-side, pendaftaran web ditutup, reset sekali pakai, CSRF dan refresh otomatis, tunnel yang berubah, HTML sanitization, upload, draft privat, publish dan sitemap.
 
 Logo/foto ferry/terminal dari bcift.co.id. beach.jpg/island.jpg merupakan ilustrasi Unsplash, bukan foto lokasi Batam terverifikasi; gunakan foto yang disetujui sebelum publikasi.
+
+## Statistik pembaca
+
+Admin melihat grafik 7/30 hari dan artikel terpopuler di dashboard. Statistik dimulai setelah fitur aktif; tidak ada data historis buatan. Artikel dibuka dihitung melalui JavaScript pada tab terlihat, klik dihitung dari kartu/tautan rekomendasi artikel, bacaan aktif membutuhkan tab terlihat minimal 15 detik dan progres isi minimal 50%. Angka adalah aktivitas, bukan orang unik atau bukti selesai membaca. Kunjungan pengguna yang login, draft dan bot yang teridentifikasi tidak dihitung. Browser pemblokir script/koneksi terputus dapat membuat aktivitas tidak tercatat.
+
+Data disimpan sebagai agregat harian di SQLite menurut Asia/Jakarta. Token acak per tampilan mencegah pengiriman ulang menggandakan hitungan; token kedaluwarsa dibersihkan berkala. Tidak menyimpan alamat IP, email pembaca atau riwayat lintas situs. Kunci statistik berada di data/analytics.key dan ikut diabaikan Git. Hanya Admin yang dapat membaca ringkasan statistik.
+
+## Tiga artikel di halaman utama BCIFT
+
+Admin membuka **Halaman utama**: pilih **Otomatis** (tiga artikel terbit terbaru menurut tanggal terbit) atau **Manual** (tiga pilihan berurutan), lalu Simpan pengaturan. Draft tidak ditampilkan. Jika pilihan manual tidak lagi terbit, slot kosong diisi artikel terbit terbaru lainnya. Jika hanya ada satu/dua artikel, tampilkan yang tersedia. Pengaturan disimpan di SQLite yang sama dan tidak mengubah artikel.
+
+Endpoint publik **GET /blog/featured/** memberikan hanya metadata tiga artikel pilihan, tanpa akun, draft atau isi editor. Respons no-store agar pilihan terbaru tersedia pada permintaan berikutnya. Halaman utama produksi belum ada dalam repo ini; pasang integrasi sekali pada kode homepage original setelah backend blog dipasang di domain yang sama:
+
+```html
+<link rel="stylesheet" href="/blog-home.css">
+<section aria-label="Artikel BCIFT">
+  <h2>Artikel terbaru</h2>
+  <div data-bcift-blog-home></div>
+</section>
+<script src="/blog-home.js" defer></script>
+```
+
+Proxy juga perlu meneruskan /blog-home.js dan /blog-home.css. Widget menampilkan thumbnail sesuai crop dashboard, judul, kategori dan ringkasan, dengan tautan tab baru. Setiap kunjungan homepage mengambil pilihan terkini; halaman yang sudah terbuka perlu dimuat ulang. Untuk hasil HTML awal yang bisa diindeks, backend homepage dapat mengambil endpoint ini di server dan merender tiga kartu memakai data articles (url, title, image, imageAlt, thumbnail, category, description, publishedAt). Jangan mengganti homepage asli dengan aplikasi blog.

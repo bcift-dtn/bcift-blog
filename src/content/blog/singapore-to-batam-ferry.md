@@ -14,7 +14,7 @@ quickInfo:
     value: Batam Center
   - label: Travel time
     value: Check your selected sailing
-draft: false
+draft: true
 ---
 
 > Template preview — replace this sample copy with your verified article before publishing.

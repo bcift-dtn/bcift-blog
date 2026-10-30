@@ -4,7 +4,7 @@ description: 'The essentials to organise before your next crossing, all in one h
 category: Travel Tips
 image: /images/departure.webp
 imageAlt: Departure area at Batam Center terminal
-draft: false
+draft: true
 ---
 
 > Template preview — add your final article and approved photographs before publishing.

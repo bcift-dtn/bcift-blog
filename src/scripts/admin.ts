@@ -5,8 +5,13 @@ import {isDestination} from '../lib/destination-trips.mjs';
 import {mediaUrl} from '../lib/media-url.mjs';
 import {createPasteFormatter} from './paste-content.mjs';
 import {cmsFetch} from './cms-fetch';
+import {initEditorToolbar} from './editor-toolbar.mjs';
 const $ = <T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
-const notice=(message:string,error=false)=>{ $('notice').textContent=message;$('notice').classList.toggle('error',error); };
+let noticeTimer:ReturnType<typeof setTimeout>|undefined;
+const notice=(message:string,error=false)=>{
+ clearTimeout(noticeTimer);const el=$('notice');el.textContent=message;el.classList.toggle('error',error);
+ if(message&&!error)noticeTimer=setTimeout(()=>{if(el.textContent===message&&!el.classList.contains('error'))notice('');},5000);
+};
 async function api(path:string,options:RequestInit={}){
  const response=await cmsFetch('/blog/admin/api/'+path+'/',{...options,headers:{...(options.body instanceof ArrayBuffer?{}:{'Content-Type':'application/json'}),...options.headers}});
  const data=await response.json();if(!response.ok)throw new Error(data.error||'Permintaan gagal.');return data;
@@ -17,10 +22,29 @@ if($('logout')){
  type Article={id:number;title:string;slug:string;body:string;status:string;updated_at:string;[key:string]:any};
  let articles:Article[]=[],current:Article|null=null,dirty=false,busy=false;
  let imageTarget='cover',savedRange:Range|null=null;
+ const menuButtons=[...document.querySelectorAll<HTMLButtonElement>('[data-studio-view]')];
+ function savingInProgress(){if(!busy)return false;notice('Tunggu sampai artikel selesai disimpan.');return true;}
+ function selectView(view:string){
+  if(savingInProgress())return;
+  if(view!=='articles'&&!isAdmin)return;
+  if(!$('editor-view').hidden&&dirty){if(!confirm('Tinggalkan perubahan yang belum disimpan?'))return;dirty=false;}
+  notice('');
+  linkEditor.hide();coverEditor.hide();
+  $('editor-view').hidden=true;$('library').hidden=view!=='articles';
+  if($('homepage-view'))$('homepage-view').hidden=view!=='homepage';
+  if($('analytics-view'))$('analytics-view').hidden=view!=='analytics';
+  if($('team-view'))$('team-view').hidden=view!=='team';
+  for(const button of menuButtons){if(button.dataset.studioView===view)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');}
+  document.dispatchEvent(new CustomEvent('studio:view',{detail:{view}}));
+  window.scrollTo({top:0,behavior:'instant'});
+ }
+ for(const button of menuButtons)button.addEventListener('click',()=>selectView(button.dataset.studioView!));
+ $('team-close')?.addEventListener('click',()=>selectView('articles'));
+
  const form=$<HTMLFormElement>('article-form'),body=$('body');
  const field=(name:string)=>form.elements.namedItem(name) as HTMLInputElement;
  const coverEditor=initCoverEditor(document,markDirty);
- const slugify=(value:string)=>value.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,100);
+ const slugify=(value:string)=>value.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,100).replace(/-$/,'');
  const categoryInputs=[...form.querySelectorAll<HTMLInputElement>('input[name="categories"]')];
  const selectedCategories=()=>categoryInputs.filter(input=>input.checked).map(input=>input.value);
  function destinationFields(){categoryInputs[0].setCustomValidity(selectedCategories().length?'':'Pilih minimal satu kategori artikel.');const visible=isDestination(selectedCategories());$('destination-panel').hidden=!visible;document.querySelectorAll<HTMLFieldSetElement>('.destination-row').forEach(row=>row.disabled=!visible);}
@@ -56,6 +80,9 @@ if($('logout')){
  async function load(){articles=await api('articles');list();}
  function cover(){const img=$<HTMLImageElement>('cover-preview');field('image').value=mediaUrl(field('image').value);img.src=field('image').value;img.hidden=!field('image').value;coverEditor.setImage(field('image').value);}
  function open(article:Article|null){
+  if(savingInProgress())return;
+  notice('');
+  toolbar.reset();
   linkEditor.hide();coverEditor.setValue(article?.image_focus);current=article;form.reset();for(const name of ['title','slug','description','author','image','image_alt','seo_title','keywords'])if(article)field(name).value=article[name]||'';
   const chosen=article?readCategories(article.categories,article.category):['Travel Guide'];categoryInputs.forEach(input=>input.checked=chosen.includes(input.value));
   $('destination-trips').replaceChildren();for(const trip of article?.destination_trips??[])addDestination(trip);destinationFields();
@@ -63,18 +90,30 @@ if($('logout')){
   body.innerHTML=article?.body||'';dirty=false;$('library').hidden=true;$('editor-view').hidden=false;$('editor-heading').textContent=article?'Edit artikel':'Artikel baru';$('save-state').textContent=article?(article.status==='published'?'Terbit':'Draft')+' · Tersimpan':'Belum disimpan';$('delete').hidden=!article||!isAdmin;
   const preview=$<HTMLAnchorElement>('preview');preview.hidden=!article;preview.href=article?'/blog/'+article.slug+'/?preview=1':'#';$('publish').textContent=article?.status==='published'?'Simpan perubahan':'Terbitkan';cover();seo();window.scrollTo({top:0,behavior:'instant'});
  }
+ function showLibrary(){notice('');linkEditor.hide();coverEditor.hide();$('editor-view').hidden=true;$('library').hidden=false;window.scrollTo({top:0,behavior:'instant'});}
  async function save(status:string){
   if(busy||!form.reportValidity())return;busy=true;const savedSnapshot=snapshot();
-  document.querySelectorAll<HTMLButtonElement>('#save-draft,#publish').forEach(b=>b.disabled=true);
-  try{const result=await api('articles',{method:'POST',body:JSON.stringify({...JSON.parse(savedSnapshot),id:current?.id,updated_at:current?.updated_at,status})});current=result;const unchanged=savedSnapshot===snapshot();dirty=!unchanged;if(unchanged)open(result);else{const preview=$<HTMLAnchorElement>('preview');preview.hidden=false;preview.href='/blog/'+result.slug+'/?preview=1';$('save-state').textContent='Versi tersimpan; perubahan terbaru belum disimpan';}await load();notice(status==='published'?'Artikel diterbitkan. Blog dan sitemap sudah diperbarui.':'Draft berhasil disimpan.');}catch(error){notice((error as Error).message,true);}finally{busy=false;document.querySelectorAll<HTMLButtonElement>('#save-draft,#publish').forEach(b=>b.disabled=false);}
+  const buttons=[...document.querySelectorAll<HTMLButtonElement>('#save-draft,#publish,#back,#new,#delete,#logout,[data-studio-view]')];
+  const disabledBefore=buttons.map(button=>button.disabled);buttons.forEach(button=>button.disabled=true);
+  try{
+   const result=await api('articles',{method:'POST',body:JSON.stringify({...JSON.parse(savedSnapshot),id:current?.id,updated_at:current?.updated_at,status})});
+   const unchanged=savedSnapshot===snapshot();current=result;dirty=!unchanged;
+   articles=[result,...articles.filter(article=>article.id!==result.id)];
+   let message=status==='published'?'Artikel diterbitkan. Blog dan sitemap sudah diperbarui.':'Draft berhasil disimpan.';
+   if(unchanged){$<HTMLInputElement>('search').value='';$<HTMLSelectElement>('status').value='all';showLibrary();}
+   else{const preview=$<HTMLAnchorElement>('preview');preview.hidden=false;preview.href='/blog/'+result.slug+'/?preview=1';$('save-state').textContent='Versi tersimpan; perubahan terbaru belum disimpan';message+=' Perubahan yang dibuat selama penyimpanan masih ada di editor dan belum disimpan.';}
+   list();notice(message);
+   try{await load();}catch{notice(message+' Daftar terbaru belum dapat dimuat; artikel yang tersimpan tetap ditampilkan.');}
+  }catch(error){notice((error as Error).message,true);}
+  finally{busy=false;buttons.forEach((button,i)=>button.disabled=disabledBefore[i]);}
  }
- $('new').onclick=()=>open(null);$('back').onclick=()=>{if(dirty&&!confirm('Tinggalkan perubahan yang belum disimpan?'))return;linkEditor.hide();dirty=false;$('editor-view').hidden=true;$('library').hidden=false;};
- $('logout').onclick=async()=>{if(dirty&&!confirm('Keluar tanpa menyimpan perubahan?'))return;try{await api('logout',{method:'POST',body:'{}'});dirty=false;location.reload();}catch(e){notice((e as Error).message,true);}};
+ $('new').onclick=()=>open(null);$('back').onclick=()=>{if(savingInProgress())return;if(dirty&&!confirm('Tinggalkan perubahan yang belum disimpan?'))return;dirty=false;showLibrary();};
+ $('logout').onclick=async()=>{if(savingInProgress())return;if(dirty&&!confirm('Keluar tanpa menyimpan perubahan?'))return;try{await api('logout',{method:'POST',body:'{}'});dirty=false;location.reload();}catch(e){notice((e as Error).message,true);}};
  $('search').addEventListener('input',list);$('status').addEventListener('change',list);form.addEventListener('submit',e=>e.preventDefault());form.addEventListener('input',changed);body.addEventListener('input',changed);
  $('title').addEventListener('input',()=>{if(!current)field('slug').value=slugify(field('title').value);});$('image').addEventListener('change',cover);
  $('save-draft').onclick=()=>{if(current?.status==='published'&&!confirm('Retarik artikel dari publik dan simpan sebagai draft?'))return;save('draft');};$('publish').onclick=()=>save('published');
- $('delete').onclick=async()=>{if(!current||!confirm('Hapus artikel “'+current.title+'”? Tindakan ini tidak bisa dibatalkan.'))return;try{await api('articles/'+current.id,{method:'DELETE'});dirty=false;$('back').click();await load();notice('Artikel dihapus.');}catch(e){notice((e as Error).message,true);}};
- document.querySelectorAll<HTMLButtonElement>('[data-command],[data-block]').forEach(button=>{button.onmousedown=e=>e.preventDefault();button.onclick=()=>{body.focus();document.execCommand(button.dataset.command||'formatBlock',false,button.dataset.block);changed();};});
+ $('delete').onclick=async()=>{if(savingInProgress())return;if(!current||!confirm('Hapus artikel “'+current.title+'”? Tindakan ini tidak bisa dibatalkan.'))return;try{await api('articles/'+current.id,{method:'DELETE'});dirty=false;$('back').click();await load();notice('Artikel dihapus.');}catch(e){notice((e as Error).message,true);}};
+ const toolbar=initEditorToolbar(body,document.querySelectorAll<HTMLButtonElement>('[data-command],[data-block]'),changed);
  const linkEditor=initLinkEditor(body,$('insert-link'),changed);
  const formatPaste=createPasteFormatter(window);
  body.addEventListener('paste',e=>{

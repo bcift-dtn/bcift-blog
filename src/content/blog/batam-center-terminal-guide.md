@@ -4,7 +4,7 @@ description: 'Get familiar with the terminal before your next international cros
 category: Terminal Guide
 image: /images/terminal.webp
 imageAlt: Batam Center International Ferry Terminal
-draft: false
+draft: true
 ---
 
 > Template preview — add your final article and approved photographs before publishing.

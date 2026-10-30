@@ -30,7 +30,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS invitations(token TEXT PRIMARY KEY,email TEX
 CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,actor INTEGER,event TEXT NOT NULL,subject TEXT NOT NULL,created_at TEXT NOT NULL);`);
 db.prepare("DELETE FROM invitations WHERE purpose!='reset'").run();
 export const categories = CATEGORY_VALUES;
-export const slugify = value => String(value).normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 100);
+export const slugify = value => String(value).normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 100).replace(/-$/, '');
 const digest = value => createHash('sha256').update(value).digest('hex');
 const normalizeEmail=value=>String(value||'').trim().toLowerCase();
 function checkPassword(password){if(typeof password!=='string'||password.length<12||password.length>128)throw new Error('Password harus 12–128 karakter.');}
@@ -143,7 +143,7 @@ export function saveArticle(input, id) {
  const destinationTrips = validateDestinationTrips(input.destination_trips ?? readDestinationTrips(previous?.destination_trips));
  const status = input.status === 'published' ? 'published' : 'draft';
  if (!title || !slug) throw new Error('Judul dan slug wajib diisi.');
- if (['admin','media','sitemap','index'].includes(slug)) throw new Error('Slug ini digunakan sistem. Pilih slug lain.');
+ if (['admin','media','sitemap','index','events','featured'].includes(slug)) throw new Error('Slug ini digunakan sistem. Pilih slug lain.');
  if (image && !/^https:\/\/[^\s]+$/.test(image) && !/^\/(?:images\/[a-zA-Z0-9_.-]+|blog\/media\/[a-f0-9]{32}\/?)$/.test(image)) throw new Error('Gunakan gambar upload atau URL HTTPS.');
  if (status === 'published' && (!description || !image || !imageAlt || sanitizeHtml(body,{allowedTags:[],allowedAttributes:{}}).trim().length < 40)) throw new Error('Lengkapi ringkasan, gambar, alt gambar, dan isi artikel sebelum menerbitkan.');
  const now = new Date().toISOString();

@@ -12,7 +12,14 @@ export function createPasteFormatter(window){
   if(html.length>1000000||text.length>200000)throw new Error('Teks terlalu panjang. Tempel artikel dalam bagian yang lebih kecil.');
   const source=html.trim()?html:marked.parse(text,{gfm:true,breaks:true,async:false});
   const template=window.document.createElement('template');
-  template.innerHTML=purifier.sanitize(source,options);
+  // Some clipboard exporters wrap normal text in <b style="font-weight:normal">.
+  // Read that override before stripping styles, otherwise the wrapper bolds everything.
+  template.innerHTML=purifier.sanitize(source,{...options,ALLOWED_ATTR:[...options.ALLOWED_ATTR,'style']});
+  for(const node of [...template.content.querySelectorAll('b,strong')].reverse()){
+   const weight=node.style.fontWeight;
+   if(weight==='normal'||(Number(weight)>0&&Number(weight)<600))node.replaceWith(...node.childNodes);
+  }
+  for(const node of template.content.querySelectorAll('[style]'))node.removeAttribute('style');
   for(const node of [...template.content.querySelectorAll('div')].reverse()){
    if(node.querySelector('p,div,h1,h2,h3,h4,h5,h6,ul,ol,table,blockquote'))node.replaceWith(...node.childNodes);
    else{const paragraph=window.document.createElement('p');paragraph.append(...node.childNodes);node.replaceWith(paragraph);}

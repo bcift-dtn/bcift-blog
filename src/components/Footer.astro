@@ -1,73 +1,75 @@
 ---
-const contacts = [
-  { href: 'https://wa.me/6281170029089', label: '+62 811 7002 9089', icon: 'phone' },
-  { href: 'mailto:info@bcift.com', label: 'info@bcift.com', icon: 'mail' },
+const links = [
+  {href:'https://bcift.co.id/schedule',label:'Ferry schedules'},
+  {href:'https://bcift.co.id/ferry-operator',label:'Ferry operators'},
+  {href:'https://bcift.co.id/tenants',label:'Terminal shops & dining'},
+  {href:'/blog/',label:'All travel stories'},
 ];
+const directions='https://www.google.com/maps/search/?api=1&query=Batam+Center+International+Ferry+Terminal';
 ---
 <footer class="official-footer">
   <div class="footer-container">
-    <div class="footer-one">
-      <p>Batam Center International Ferry Terminal is Batam's primary international ferry hub, serving routes to Singapore and Malaysia.</p>
-      {contacts.map(contact => <a href={contact.href}><svg aria-hidden="true" width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">{contact.icon === 'mail' ? <><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 6 9 7 9-7"/></> : <path d="M7 3H4a1 1 0 0 0-1 1c0 9.4 7.6 17 17 17a1 1 0 0 0 1-1v-3l-5-2-2 2a15 15 0 0 1-7-7l2-2-2-5Z"/>}</svg>{contact.label}</a>)}
-    </div>
-    <div class="footer-two">
-      <div class="footer-dropdown"><h3>Company</h3><button class="footer-dropdown-btn" aria-label="Toggle company links" aria-controls="footer-company-links" aria-expanded="false"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button></div>
-      <ul class="footer-links-two" id="footer-company-links"><li><a href="https://bcift.co.id/about">About us</a></li></ul>
-    </div>
-    <div class="mobile-contact">{contacts.map(contact => <a href={contact.href}><svg aria-hidden="true" width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">{contact.icon === 'mail' ? <><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 6 9 7 9-7"/></> : <path d="M7 3H4a1 1 0 0 0-1 1c0 9.4 7.6 17 17 17a1 1 0 0 0 1-1v-3l-5-2-2 2a15 15 0 0 1-7-7l2-2-2-5Z"/>}</svg>{contact.label}</a>)}</div>
+    <section class="footer-intro" aria-label="About BCIFT">
+      <a class="footer-brand" href="https://bcift.co.id/"><span>Batam Center</span><span>International Ferry Terminal</span></a>
+      <p>Your gateway to Singapore and Malaysia. Find ferry information, terminal services, and ideas for your next Batam visit.</p>
+      <div class="footer-contacts">
+        <!-- WhatsApp mark: Bootstrap Icons, MIT; see licenses/bootstrap-icons.txt. -->
+        <a class="footer-whatsapp" href="https://wa.me/6281170029089" aria-label="WhatsApp BCIFT: +62 811 7002 9089"><svg aria-hidden="true" width="21" height="21" viewBox="0 0 16 16" fill="currentColor"><path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"/></svg><span>+62 811 7002 9089</span></a>
+        <a class="footer-email" href="mailto:info@bcift.com"><svg aria-hidden="true" width="21" height="21" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Zm0 4-8 5-8-5V6l8 5 8-5v2Z"/></svg><span>info@bcift.com</span></a>
+      </div>
+    </section>
+    <nav class="footer-navigation" aria-label="Footer navigation">
+      <h2>Plan your visit</h2>
+      <ul>{links.map(link=><li><a href={link.href}>{link.label}</a></li>)}</ul>
+    </nav>
+    <section class="footer-office" aria-labelledby="footer-office-title">
+      <h2 id="footer-office-title">Head Office</h2>
+      <address>Komplek Pertokoan Coastarina,<br/>Block A No. 1<br/>Batam, Kepulauan Riau</address>
+      <div class="footer-hours"><span>Office hours · WIB</span><dl><div><dt><abbr title="Monday–Friday">Mon–Fri</abbr></dt><dd>08:00–16:00</dd></div><div><dt><abbr title="Saturday">Sat</abbr></dt><dd>08:00–14:00</dd></div></dl></div>
+    </section>
+    <section class="footer-visit" aria-labelledby="footer-visit-title">
+      <h2 id="footer-visit-title">Find the terminal</h2>
+      <div class="footer-location"><address>Jl. Engku Putri, Batam Center<br/>Batam, Kepulauan Riau, Indonesia</address>
+      <a class="footer-directions" href={directions} target="_blank" rel="noopener noreferrer">Open in Google Maps <span aria-hidden="true">↗</span></a></div>
+      <div class="footer-hours"><span>Terminal hours · WIB</span><dl><div><dt>Daily</dt><dd>05:00–22:00</dd></div></dl></div>
+    </section>
   </div>
-  <p class="copyright">Copyrights ©{new Date().getFullYear()} Batam Center International Ferry Terminal. All rights reserved</p>
+  <div class="footer-bottom"><p>©{new Date().getFullYear()} Batam Center International Ferry Terminal. All rights reserved.</p><nav aria-label="About and support"><a href="https://bcift.co.id/about">About BCIFT</a><a href="https://bcift.co.id/contact">Contact us</a></nav></div>
 </footer>
-<script>
-const button = document.querySelector<HTMLButtonElement>('.footer-dropdown-btn')!;
-const links = document.querySelector<HTMLElement>('#footer-company-links')!;
-const mobile = matchMedia('(max-width:1010px)');
-button.addEventListener('click', () => {
-  if (!mobile.matches) return;
-  const open = button.getAttribute('aria-expanded') !== 'true';
-  button.setAttribute('aria-expanded', String(open));
-  links.classList.toggle('open', open);
-});
-function resetFooter() {
-  links.classList.remove('open');
-  button.setAttribute('aria-expanded', String(!mobile.matches));
-}
-mobile.addEventListener('change', resetFooter);
-resetFooter();
-</script>
 <style>
-/* BCIFT footer stylesheet, scoped so editorial styles cannot override it. */
-.official-footer .mobile-contact{display:none}
-.official-footer *{color:white;font-size:28px}
-.official-footer{display:flex;flex-direction:column;justify-content:space-between;width:100%;padding:50px 90px 0;background-image:linear-gradient(258deg,#55AEDF,#0C4A6E 100%);gap:0;font-family:Nunito,Arial,sans-serif}
-.footer-container{display:flex;width:100%}
-.footer-dropdown{display:flex}
-.footer-dropdown-btn{display:none}
-.footer-one{flex:1;display:flex;flex-direction:column;gap:15px;margin-right:auto;margin-top:0}
-.footer-one p{max-width:500px;margin:0 0 20px;font-size:1rem;line-height:2.2rem}
-.footer-one a{display:flex;align-items:center;gap:10px;text-decoration:none;font-size:1rem}
-.footer-one a svg{width:25px;height:25px;flex-shrink:0}
-.official-footer h3{font-weight:900;font-family:Arimo,Arial,sans-serif;font-size:1.5rem;margin:0}
-.official-footer ul{display:flex;flex-direction:column;align-items:flex-start;gap:2px;list-style:none;margin:0;padding:0}
-.official-footer ul a{color:#fff;font-size:1rem;text-decoration:none}
-.footer-two{flex:1;display:flex;flex-direction:column;gap:1rem}
-.official-footer .copyright{margin:50px 0 0;padding-bottom:10px;text-align:center;color:white;font-size:.8rem}
-@media(max-width:1010px){
-.official-footer{flex-direction:column;padding:.8em 2em}
-.footer-container{flex-direction:column;gap:1em}
-.footer-one{align-items:center;width:100%}
-.footer-one p{max-width:90%;margin-bottom:0;text-align:center}
-.footer-one a{display:none}
-.footer-dropdown{justify-content:space-between;align-items:center}
-.footer-dropdown-btn{display:flex;align-items:center;justify-content:center;background:none;border:0;padding:8px;width:44px;min-height:44px;cursor:pointer}
-.footer-dropdown-btn svg{width:1.2em;transition:transform .2s}
-.footer-dropdown-btn[aria-expanded=true] svg{transform:rotate(180deg)}
-.official-footer .footer-links-two{display:none}
-.official-footer .footer-links-two.open{display:flex}
-.official-footer .mobile-contact{display:flex;justify-content:center;align-items:center;gap:1.5em;flex-wrap:wrap}
-.official-footer .mobile-contact>a{display:flex;align-items:center;text-decoration:none;font-size:.7em;gap:4px}
-}
-@media(max-width:520px){.official-footer{padding:.8em 1.5em}.official-footer .mobile-contact>a{font-size:.5em}}
-@media(max-width:470px){.footer-one p{max-width:100%;font-size:.8rem;line-height:1.8rem}.mobile-contact svg{width:25px;flex-shrink:0;margin-right:2px}.official-footer .mobile-contact>a{font-size:.4em}.official-footer .copyright{font-size:.6rem;margin-top:40px}}
-@media(prefers-reduced-motion:reduce){.footer-dropdown-btn svg{transition:none}}
+.official-footer{display:block;width:100%;padding:38px max(24px,calc((100% - 1104px)/2)) 0;background:linear-gradient(110deg,#294f70,#3e759d);color:#fff;font:14px/1.75 'Nunito Sans',Arial,sans-serif}
+.official-footer a{color:inherit;text-decoration:none;outline-offset:5px}
+.official-footer a:hover{text-decoration:underline;text-underline-offset:4px}
+.footer-container{display:grid;grid-template-columns:1.2fr .8fr 1fr 1.1fr;grid-template-areas:'intro navigation office visit' 'intro navigation office visit' 'intro navigation office visit';grid-template-rows:auto auto auto;gap:14px 36px;align-items:start}
+.footer-intro,.footer-navigation,.footer-office,.footer-visit{min-width:0}
+.footer-intro{grid-area:intro}.footer-navigation{grid-area:navigation}.footer-office{grid-area:office}.footer-visit{grid-area:visit}
+.footer-office,.footer-visit{display:grid;grid-template-rows:subgrid;row-gap:14px}
+.footer-brand{display:inline-flex;flex-direction:column;line-height:1.4}
+.footer-brand span:first-child{font-size:22px;font-weight:800;letter-spacing:-.3px}
+.footer-brand span:last-child{font-size:13px;letter-spacing:.03em}
+.footer-intro p{max-width:32ch;margin:12px 0 15px;color:#e4eff7;font-size:13px;line-height:1.75}
+.official-footer h2{margin:3px 0 0;color:#fff;font-size:14px;font-weight:700;line-height:1.5}
+.footer-navigation{display:block;font-size:13px;font-weight:400}
+.footer-navigation ul{display:grid;gap:5px;list-style:none;padding:0;margin:14px 0 0}
+.footer-navigation a{display:inline-block;padding:4px 0;line-height:1.65;color:#e4eff7;font-weight:400}
+.footer-visit address,.footer-office address{font-style:normal;font-size:13px;line-height:1.85;color:#e4eff7}
+.footer-directions{display:inline-flex;align-items:center;gap:9px;margin-top:8px;font-size:13px;font-weight:700}
+.footer-hours{margin:0;color:#fff;font-size:13px;line-height:1.8}
+.footer-hours>span{display:block;color:#d8e7f2;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.footer-hours dl{display:grid;gap:5px;margin:7px 0 0}
+.footer-hours dl>div{display:grid;grid-template-columns:58px max-content;align-items:baseline;justify-content:start;column-gap:12px}
+.footer-hours dt{font-size:13px;color:#e4eff7;white-space:nowrap}
+.footer-hours abbr{text-decoration:none}
+.footer-hours dd{margin:0;font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.footer-contacts{display:grid;justify-items:start;gap:9px}
+.footer-contacts a{display:inline-flex;align-items:center;gap:10px;padding:3px 0;font-size:13px;overflow-wrap:anywhere}
+.footer-contacts svg{flex-shrink:0}
+.footer-whatsapp{line-height:1.6}
+.footer-email{color:#e4eff7!important}
+.footer-bottom{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:26px;padding:17px 0 19px;border-top:1px solid #ffffff26}
+.footer-bottom p{margin:0;color:#e4eef6;font-size:11px;line-height:1.7}
+.footer-bottom nav{display:flex;gap:20px;font-size:11px;font-weight:400}
+.footer-bottom nav a{padding:0}
+@media(max-width:1000px){.footer-container{grid-template-columns:1fr 1fr;grid-template-areas:'intro navigation' 'visit office';grid-template-rows:auto auto;gap:28px 40px}.footer-office,.footer-visit{display:block}.footer-office h2,.footer-visit h2{margin-bottom:14px}.footer-hours{margin-top:16px}.footer-hours dl{max-width:240px}}
+@media(max-width:600px){.official-footer{padding:30px 24px 0}.footer-container{grid-template-columns:1fr 1fr;grid-template-areas:'intro intro' 'navigation navigation' 'visit office';gap:23px 24px}.footer-intro p{max-width:46ch;margin:12px 0 16px}.footer-contacts{gap:10px}.footer-brand span:first-child{font-size:21px}.official-footer h2{font-size:14px;margin-bottom:12px}.footer-navigation{font-size:12px}.footer-navigation ul{grid-template-columns:1fr 1fr;gap:5px 24px;margin-top:0}.footer-navigation a{padding:5px 0}.footer-visit,.footer-office{padding-top:19px;border-top:1px solid #ffffff26}.footer-visit address,.footer-office address{font-size:12px}.footer-hours{margin:15px 0 0;font-size:12px}.footer-hours>span{font-size:10px;letter-spacing:.04em}.footer-hours dt,.footer-hours dd{font-size:11px}.footer-hours dl>div{grid-template-columns:44px max-content;column-gap:6px}.footer-directions{font-size:12px}.footer-bottom{align-items:flex-start;flex-direction:column;gap:12px;margin-top:23px}.footer-bottom p,.footer-bottom nav{font-size:10px}}
 </style>

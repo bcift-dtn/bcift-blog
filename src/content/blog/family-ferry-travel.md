@@ -4,7 +4,7 @@ description: 'A little preparation for a more comfortable ferry journey with you
 category: Travel Tips
 image: /images/singapore.webp
 imageAlt: Singapore skyline
-draft: false
+draft: true
 ---
 
 > Template preview — add your final article and approved photographs before publishing.
