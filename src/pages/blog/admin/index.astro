@@ -19,7 +19,7 @@ const user=currentUser(Astro.cookies.get('bcift_session')?.value);
 const logged=!!user;
 const setup=!hasAdmin();
 ---
-<!doctype html><html lang="id"><head><meta charset="utf-8"/><meta name="bcift-csrf" content={csrf}/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="robots" content="noindex,nofollow"/><title>Blog Studio | BCIFT</title><link rel="icon" href="/favicon.png"/></head><body>
+<!doctype html><html lang="id"><head><meta charset="utf-8"/><meta name="bcift-csrf" content={csrf}/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="robots" content="noindex,nofollow"/><title>Blog Studio | BCIFT</title><link rel="icon" type="image/png" sizes="96x96" href="/blog/favicon.png"/></head><body>
 <header><a href="/blog/admin/" class="brand"><img src="/images/logo.png" alt="BCIFT" width="140"/><span>Blog Studio</span></a><div><a href="/blog/" target="_blank">Lihat blog ↗</a>{logged&&<button id="logout" class="quiet">Keluar</button>}</div></header>
 <div id="notice" role="status" aria-live="polite"></div>
 {!logged?<main class="auth"><p class="eyebrow">BCIFT · INTERNAL TEAM</p>
