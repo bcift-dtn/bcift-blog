@@ -54,7 +54,7 @@ Produksi memerlukan Node, disk persisten dan HTTPS. Proxy `/blog/`, `/_astro/`, 
 
 Blog menyediakan Bahasa Indonesia di `/blog/` dan English di `/blog/en/`. Artikel sumber memakai alamat `/blog/<slug>/`. Versi kedua masuk ke sitemap setelah opsi terbit di Blog Studio diaktifkan. Draf terjemahan dapat dicek dari tombol Pratinjau artikel.
 
-Untuk mengaktifkan **Buat draf terjemahan**, aktifkan Cloud Translation API di Google Cloud dan simpan kunci yang dibatasi ke API tersebut sebagai `CMS_GOOGLE_TRANSLATE_KEY` di lingkungan server. Pada pengembangan lokal, set variabel ini sebelum menjalankan `npm run dev`. Saat tombol dipakai, judul, ringkasan, isi, judul SEO, dan alt gambar dikirim ke Google Cloud Translation. Editor dapat memeriksa draf sebelum menyimpannya atau menerbitkannya.
+Untuk mengaktifkan **Buat draf terjemahan**, buat API key DeepL API Developer, lalu masuk sebagai admin dan simpan key di **Tim & akses → Terjemahan otomatis**. Buat PIN 6–12 angka saat pertama kali menyimpan. Penggantian key memerlukan PIN yang sama. Simpan seluruh folder data persisten saat backup atau migrasi karena key tersimpan terenkripsi di SQLite dan file `deepl.key` digunakan untuk membukanya. Judul, ringkasan, isi, judul SEO, dan alt gambar dikirim ke DeepL saat editor meminta draf.
 
 Tambahkan https://bcift.co.id/blog/sitemap.xml ke robots.txt situs utama dan Search Console. Untuk konfigurasi host proxy khusus gunakan CMS_PUBLIC_ORIGIN, tanpa path, lalu restart/rebuild server. Keamanan mutasi CMS tidak bergantung pada pencocokan origin tunnel.
 

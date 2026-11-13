@@ -7,7 +7,8 @@ import {preferredLanguage} from '../src/lib/blog-language.mjs';
 
 const dataDir=mkdtempSync(join(tmpdir(),'bcift-language-'));
 process.env.CMS_DATA_DIR=dataDir;
-const {db,saveArticle,asPost}=await import('../src/server/cms.mjs');
+const {db,saveArticle,asPost,createAccount}=await import('../src/server/cms.mjs');
+const {saveDeeplSettings,deeplConfigured,deeplKey}=await import('../src/server/deepl-settings.mjs');
 const {generateTranslation}=await import('../src/server/translation.mjs');
 test.after(()=>{db.close();rmSync(dataDir,{recursive:true,force:true});});
 
@@ -30,26 +31,49 @@ test('translations stay independent from source content and use sanitized HTML',
  assert.throws(()=>saveArticle({...translated,translation:{published:true}},original.id),/Lengkapi/);
 });
 
-test('machine translation requests both formats and creates an unpublished draft',async()=>{
- const prior=process.env.CMS_GOOGLE_TRANSLATE_KEY;
- process.env.CMS_GOOGLE_TRANSLATE_KEY='test-key';
- try{
-  const formats=[];
-  const result=await generateTranslation({language:'en',title:'Ferry travel',description:'Tips for travellers.',body:'<p>Read this guide.</p>'},async(url,init)=>{
-   const request=JSON.parse(init.body);
-   formats.push(request.format);
-   assert.equal(url,'https://translation.googleapis.com/language/translate/v2');
-   assert.equal(request.source,'en');
-   assert.equal(request.target,'id');
-   const translations=(request.format==='html'?['<p>Baca panduan ini.</p>']:['Perjalanan feri','Tips untuk pelancong.']).map(translatedText=>({translatedText}));
-   return Response.json({data:{translations}});
-  });
-  assert.deepEqual(formats.sort(),['html','text']);
-  assert.equal(result.title,'Perjalanan feri');
-  assert.equal(result.body,'<p>Baca panduan ini.</p>');
-  assert.equal(result.published,false);
- }finally{
-  if(prior===undefined)delete process.env.CMS_GOOGLE_TRANSLATE_KEY;
-  else process.env.CMS_GOOGLE_TRANSLATE_KEY=prior;
- }
+test('DeepL settings require admin access and a PIN for replacement',async()=>{
+ const admin=createAccount('owner@example.com','test-password-12345','admin');
+ const initial={apiKey:'test-key-developer-initial',pin:'104872',pinConfirmation:'104872'};
+ const validate=async(url,init)=>{
+  assert.equal(url,'https://api-free.deepl.com/v2/usage');
+  assert.match(init.headers.Authorization,/^DeepL-Auth-Key test-key-developer-/);
+  return Response.json({character_count:0,character_limit:1000000});
+ };
+ assert.equal(deeplConfigured(),false);
+ await assert.rejects(saveDeeplSettings({...admin,role:'editor'},initial,validate),/Hanya admin/);
+ await assert.rejects(saveDeeplSettings(admin,initial,async()=>new Response(null,{status:403})),/DeepL menolak/);
+ assert.equal(deeplConfigured(),false);
+ await assert.rejects(saveDeeplSettings(admin,{...initial,pinConfirmation:'000000'},validate),/Konfirmasi/);
+ assert.deepEqual(await saveDeeplSettings(admin,initial,validate),{configured:true});
+ const row=db.prepare('SELECT * FROM deepl_settings').get();
+ assert.ok(!JSON.stringify(row).includes(initial.apiKey));
+ assert.ok(!JSON.stringify(row).includes(initial.pin) || row.pin_hash!==initial.pin);
+ await assert.rejects(saveDeeplSettings(admin,{...initial,pin:'999999'},()=>assert.fail('Invalid PIN must not call DeepL')),/PIN salah/);
+ const replacement={apiKey:'test-key-developer-replacement',pin:initial.pin};
+ assert.deepEqual(await saveDeeplSettings(admin,replacement,validate),{configured:true});
+ assert.equal(deeplKey(),replacement.apiKey);
+ for(let i=0;i<4;i++)await assert.rejects(saveDeeplSettings(admin,{...replacement,pin:'999999'},validate),/PIN salah/);
+ await assert.rejects(saveDeeplSettings(admin,{...replacement,pin:'999999'},validate),/15 menit/);
+ await assert.rejects(saveDeeplSettings(admin,replacement,validate),/15 menit/);
+ assert.equal(deeplKey(),replacement.apiKey);
+});
+
+test('DeepL translates article HTML separately and returns an unpublished draft',async()=>{
+ const formats=[];
+ const article={language:'en',title:'Ferry travel',description:'Tips for travellers.',body:'<p>Read this guide.</p>'};
+ const result=await generateTranslation(article,async(url,init)=>{
+  const request=JSON.parse(init.body);
+  formats.push(request.tag_handling??'text');
+  assert.equal(url,'https://api-free.deepl.com/v2/translate');
+  assert.equal(init.headers.Authorization,'DeepL-Auth-Key '+deeplKey());
+  assert.equal(request.source_lang,'EN');
+  assert.equal(request.target_lang,'ID');
+  const translations=(request.tag_handling?['<p>Baca panduan ini.</p>']:['Perjalanan feri','Tips untuk pelancong.']).map(text=>({text}));
+  return Response.json({translations});
+ });
+ assert.deepEqual(formats.sort(),['html','text']);
+ assert.equal(result.title,'Perjalanan feri');
+ assert.equal(result.body,'<p>Baca panduan ini.</p>');
+ assert.equal(result.published,false);
+ await assert.rejects(generateTranslation(article,async()=>new Response(null,{status:456})),/Kuota DeepL sudah habis/);
 });

@@ -1,3 +1,4 @@
+import {saveDeeplSettings} from '../../../../server/deepl-settings.mjs';
 import {generateTranslation} from '../../../../server/translation.mjs';
 import {homepageData} from '../../../../lib/homepage';
 import {posts} from '../../../../lib/posts';
@@ -52,6 +53,7 @@ export const ALL:APIRoute=async({request,params,cookies,clientAddress})=>{
    if(path==='team'&&method==='GET')return json({members:db.prepare('SELECT id,email,role,active,(managed_hash IS NOT NULL) AS managed FROM admins ORDER BY id').all(),invitations:db.prepare('SELECT email,role,purpose,expires FROM invitations WHERE expires>?').all(Date.now())});
    if(path==='audit'&&method==='GET')return json(db.prepare('SELECT audit.id,audit.event,audit.subject,audit.created_at,admins.email AS actor FROM audit LEFT JOIN admins ON admins.id=audit.actor ORDER BY audit.id DESC LIMIT 100').all());
    if(method!=='GET'&&Date.now()-user.verifiedAt>15*60000)return json({error:'Untuk mengubah akses tim, login ulang (verifikasi berlaku 15 menit).'},403);
+   if(path==='team/translation'&&method==='POST')return json(await saveDeeplSettings(user,await input()));
    if(path==='team/create'&&method==='POST'){const created=createTeamAccount(user,await input());return json(created,201);}
    if(path==='team/invite')return json({error:'Pembuatan akun hanya melalui terminal server.'},403);
    if(path==='team/reset-password'&&method==='POST'){const data=await input();const reset=inviteMember(user,data.email,undefined,'reset');return json({token:reset,expiresInHours:24});}

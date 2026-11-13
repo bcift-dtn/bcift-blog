@@ -1,0 +1,58 @@
+---
+const {configured} = Astro.props;
+---
+<section class="panel">
+ <h2>Terjemahan otomatis</h2>
+ <p>{configured ? 'DeepL terhubung. Gunakan PIN untuk mengganti API key.' : 'Hubungkan DeepL untuk membuat draf terjemahan dari editor artikel.'}</p>
+ <form id="deepl-settings" method="post">
+  <label>{configured ? 'API key DeepL baru' : 'API key DeepL'}
+   <input name="apiKey" type="password" autocomplete="off" maxlength="128" required/>
+  </label>
+  <div class="account-fields">
+   <label>{configured ? 'PIN saat ini' : 'Buat PIN'}
+    <input name="pin" type="password" inputmode="numeric" autocomplete={configured?'current-password':'new-password'} pattern="[0-9]{6,12}" minlength="6" maxlength="12" required/>
+   </label>
+   {!configured&&<label>Ulangi PIN
+    <input name="pinConfirmation" type="password" inputmode="numeric" autocomplete="new-password" pattern="[0-9]{6,12}" minlength="6" maxlength="12" required/>
+   </label>}
+  </div>
+  <small>{configured ? 'PIN terdiri dari 6–12 angka.' : 'Gunakan 6–12 angka dan simpan PIN untuk mengganti key nanti.'} <a href="https://www.deepl.com/en/developers" target="_blank" rel="noopener noreferrer">Buat API key DeepL ↗</a></small>
+  <button type="submit" class="primary">{configured ? 'Ganti API key' : 'Hubungkan DeepL'}</button>
+  <p id="deepl-notice" role="status" aria-live="polite"></p>
+ </form>
+</section>
+<style>
+ form small { display:block; margin-bottom:12px; }
+</style>
+<script>
+ import {cmsFetch} from '../../scripts/cms-fetch';
+
+ const form = document.querySelector<HTMLFormElement>('#deepl-settings');
+ form?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const button = form.querySelector<HTMLButtonElement>('button')!;
+  const notice = document.querySelector<HTMLElement>('#deepl-notice')!;
+  if (button.disabled) return;
+  button.disabled = true;
+  notice.classList.remove('error');
+  notice.textContent = 'Memeriksa API key…';
+  const data = Object.fromEntries(new FormData(form));
+  try {
+   const response = await cmsFetch('/blog/admin/api/team/translation/',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(data),
+   });
+   const result = await response.json();
+   if (!response.ok) throw new Error(result.error || 'API key belum tersimpan.');
+   form.reset();
+   notice.textContent = 'DeepL terhubung. Memuat ulang Blog Studio…';
+   window.location.reload();
+  } catch (error) {
+   notice.classList.add('error');
+   notice.textContent = (error as Error).message;
+   form.querySelectorAll<HTMLInputElement>('input[name^="pin"]').forEach(input => {input.value='';});
+   button.disabled = false;
+  }
+ });
+</script>
