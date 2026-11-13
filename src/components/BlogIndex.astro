@@ -1,0 +1,86 @@
+---
+import BlogLanguage from './BlogLanguage.astro';
+import Base from '../layouts/Base.astro';
+import Card from '../components/Card.astro';
+import HeroWave from '../components/HeroWave.astro';
+import Banner from '../components/Banner.astro';
+import {posts,inLanguage} from '../lib/posts';
+import {blogCategory} from '../lib/blog-language.mjs';
+import {PUBLIC_CATEGORIES} from '../lib/categories.mjs';
+const {language}=Astro.props;
+const id=language==='id';
+const languagePaths={id:'/blog/',en:'/blog/en/'};
+const published=await posts();
+const all=published.flatMap(post=>inLanguage(post,language)??[]);
+const indexAlternates=published.some(post=>inLanguage(post,id?'en':'id'));
+const copy=id ? {
+ title:'Panduan Wisata Batam & Tips Feri', description:'Jelajahi panduan wisata Batam, tips naik feri, dan informasi terminal dari BCIFT.',
+ imageAlt:'Tepi laut di Terminal Feri Internasional Batam Center', heading:'Cerita & Panduan Perjalanan',
+ intro:'Jelajahi Batam, rencanakan perjalanan feri, dan ikuti kabar terbaru dari terminal.',
+ category:'Kategori artikel', all:'Semua', search:'Cari artikel…', latest:'Artikel terbaru', articles:'artikel',
+ empty:'Artikel segera hadir.', noResults:'Tidak ada artikel yang cocok. Coba kata kunci atau kategori lain.',
+} : {
+ title:'Batam Travel Guides & Ferry Tips', description:'Explore the BCIFT travel journal for Batam travel inspiration, ferry guides, and practical terminal tips.',
+ imageAlt:'Waterfront at Batam Center International Ferry Terminal', heading:'Travel Stories & Guides',
+ intro:'Discover Batam, plan your ferry journey, and stay informed with travel tips and terminal updates.',
+ category:'Article category', all:'All', search:'Search blog…', latest:'Latest stories', articles:'stories',
+ empty:'Stories are on their way.', noResults:'No stories found. Try another keyword or category.',
+};
+const categories=['All stories',...PUBLIC_CATEGORIES];
+---
+<Base title={copy.title} description={copy.description} language={language} languagePaths={languagePaths} noindex={!all.length} indexAlternates={indexAlternates}>
+ <section class="blog-hero">
+  <img src="/images/terminal.webp" alt={copy.imageAlt} width="1400" height="450" fetchpriority="high"/>
+  <div class="hero-copy"><h1>{copy.heading}</h1><p>{copy.intro}</p></div>
+  <HeroWave/>
+ </section>
+ <div class="wrap">
+  <div class="blog-language-row"><BlogLanguage language={language} paths={languagePaths}/></div>
+  <div class="toolbar" id="filters" hidden>
+   <div class="filters" role="group" aria-label={copy.category}>
+    {categories.map((category,i)=><button data-filter={category} class:list={{selected:i===0}} aria-pressed={i===0}>{i===0?copy.all:blogCategory(category,language)}</button>)}
+   </div>
+   <input class="search" type="search" placeholder={copy.search} aria-label={copy.search}/>
+  </div>
+  <div class="section-heading"><h2>{copy.latest}</h2><span id="count" data-unit={copy.articles} aria-live="polite">{all.length} {copy.articles}</span></div>
+  <section class="grid" id="stories" aria-label={copy.latest}>{all.map(post=><Card post={post} language={language}/>)}</section>
+  <p id="empty" class="empty" data-no-results={copy.noResults} hidden={all.length>0}>{copy.empty}</p>
+  <Banner/>
+ </div>
+</Base>
+<style>
+.blog-language-row { display: flex; justify-content: flex-end; margin: 0 0 16px; }
+</style>
+<script>
+import {matchesCategory} from '../lib/categories.mjs';
+const controls=document.querySelector<HTMLElement>('#filters')!;controls.hidden=false;
+const search=document.querySelector<HTMLInputElement>('.search')!;
+const group=document.querySelector<HTMLElement>('.filters')!;
+const buttons=[...document.querySelectorAll<HTMLButtonElement>('[data-filter]')];
+const cards=[...document.querySelectorAll<HTMLElement>('#stories .card')];
+const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
+let active='All stories';
+const marker=document.createElement('span');marker.className='filter-marker';marker.setAttribute('aria-hidden','true');group.prepend(marker);group.classList.add('animated-filters');
+function positionMarker(){const button=buttons.find(b=>b.dataset.filter===active)!;marker.style.width=`${button.offsetWidth}px`;marker.style.height=`${button.offsetHeight}px`;marker.style.transform=`translate(${button.offsetLeft}px,${button.offsetTop}px)`;}
+new ResizeObserver(positionMarker).observe(group);positionMarker();
+function filter(){
+ let count=0;
+ const query=search.value.trim().toLowerCase();
+ const entering:HTMLElement[]=[];
+ cards.forEach(card=>{
+  const visible=matchesCategory(JSON.parse(card.dataset.categories??'[]'),active)&&(card.dataset.title??'').includes(query);
+  if(visible&&card.hidden)entering.push(card);
+  card.getAnimations().forEach(animation=>animation.cancel());
+  card.hidden=!visible;
+  if(visible)count++;
+ });
+ if(!reduced.matches)entering.forEach(card=>card.animate([{opacity:0},{opacity:1}],{duration:180,easing:'ease-out'}));
+ const total=document.querySelector<HTMLElement>('#count')!;
+ total.textContent=`${count} ${total.dataset.unit}`;
+ const empty=document.querySelector<HTMLElement>('#empty')!;
+ empty.hidden=count>0;empty.textContent=empty.dataset.noResults!;
+}
+buttons.forEach(button=>button.addEventListener('click',()=>{if(active===button.dataset.filter)return;active=button.dataset.filter!;buttons.forEach(b=>{b.classList.toggle('selected',b===button);b.setAttribute('aria-pressed',String(b===button))});positionMarker();filter()}));
+let searchFrame=0;
+search.addEventListener('input',()=>{cancelAnimationFrame(searchFrame);searchFrame=requestAnimationFrame(filter);});
+</script>

@@ -52,6 +52,10 @@ Judul SEO opsional; fallback judul artikel. Ringkasan menjadi meta description. 
 
 Produksi memerlukan Node, disk persisten dan HTTPS. Proxy `/blog/`, `/_astro/`, `/images/`, `/favicon.png` sesuai aplikasi; jangan mengganti homepage utama BCIFT. Proxy harus memvalidasi host serta menimpa header X-Forwarded-For/Host/Proto dan membatasi port backend agar hanya bisa diakses proxy. Batas body 8 MB. Keanggotaan internal membatasi akses dashboard, bukan menyembunyikan URL login.
 
+Blog menyediakan Bahasa Indonesia di `/blog/` dan English di `/blog/en/`. Artikel sumber memakai alamat `/blog/<slug>/`. Versi kedua masuk ke sitemap setelah opsi terbit di Blog Studio diaktifkan. Draf terjemahan dapat dicek dari tombol Pratinjau artikel.
+
+Untuk mengaktifkan **Buat draf terjemahan**, aktifkan Cloud Translation API di Google Cloud dan simpan kunci yang dibatasi ke API tersebut sebagai `CMS_GOOGLE_TRANSLATE_KEY` di lingkungan server. Pada pengembangan lokal, set variabel ini sebelum menjalankan `npm run dev`. Saat tombol dipakai, judul, ringkasan, isi, judul SEO, dan alt gambar dikirim ke Google Cloud Translation. Editor dapat memeriksa draf sebelum menyimpannya atau menerbitkannya.
+
 Tambahkan https://bcift.co.id/blog/sitemap.xml ke robots.txt situs utama dan Search Console. Untuk konfigurasi host proxy khusus gunakan CMS_PUBLIC_ORIGIN, tanpa path, lalu restart/rebuild server. Keamanan mutasi CMS tidak bergantung pada pencocokan origin tunnel.
 
 ## Pengujian

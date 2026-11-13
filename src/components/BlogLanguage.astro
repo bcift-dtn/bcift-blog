@@ -1,0 +1,46 @@
+---
+const {language, paths} = Astro.props;
+const alternate = language === 'id' ? 'en' : 'id';
+---
+<div class="blog-language" data-blog-language={language}>
+  <div class="language-options" role="group" aria-label={language === 'id' ? 'Bahasa blog' : 'Blog language'}>
+    {(['id', 'en'] as const).map(code => paths[code]
+      ? <a href={paths[code]} lang={code} hreflang={code} data-language-choice={code}
+          aria-current={code === language ? 'true' : undefined}
+          aria-label={code === 'id' ? 'Bahasa Indonesia' : 'English'}>{code.toUpperCase()}</a>
+      : <span aria-disabled="true" title={language === 'id' ? 'Terjemahan belum tersedia' : 'Translation unavailable'}>{code.toUpperCase()}</span>
+    )}
+  </div>
+  {paths[alternate] && <a class="language-suggestion" hidden href={paths[alternate]} lang={alternate} data-language-choice={alternate} data-language-suggestion>
+    {alternate === 'en' ? 'Read in English' : 'Baca dalam Bahasa Indonesia'} <span aria-hidden="true">→</span>
+  </a>}
+</div>
+<script>
+  import {preferredLanguage} from '../lib/blog-language.mjs';
+
+  const control = document.querySelector<HTMLElement>('[data-blog-language]');
+  const storageKey = 'bcift.blog.language';
+  if (control) {
+    let saved;
+    try { saved = localStorage.getItem(storageKey); } catch {}
+    const suggestion = control.querySelector<HTMLAnchorElement>('[data-language-suggestion]');
+    if (suggestion && preferredLanguage(saved, navigator.languages) === suggestion.lang) {
+      suggestion.hidden = false;
+    }
+    for (const link of control.querySelectorAll<HTMLAnchorElement>('[data-language-choice]')) {
+      link.addEventListener('click', () => {
+        try { localStorage.setItem(storageKey, link.lang); } catch {}
+      });
+    }
+  }
+</script>
+<style>
+  .blog-language { display: flex; flex-direction: column; align-items: flex-end; flex: none; gap: 6px; }
+  .language-options { display: flex; gap: 2px; border: 1px solid #b9d0de; border-radius: 24px; padding: 3px; background: #f3f8fc; }
+  .language-options a, .language-options span { display: grid; place-items: center; min-width: 33px; min-height: 30px; padding: 0; border-radius: 20px; font: 800 12px/1 Nunito, Arial, sans-serif; color: #184b69; text-decoration: none; }
+  .language-options a[aria-current] { background: #17496a; color: white; }
+  .language-options a:not([aria-current]):hover { background: #dcebf5; }
+  .language-options span { color: #647987; }
+  .language-options a:focus-visible, .language-suggestion:focus-visible { outline: 2px solid #136595; outline-offset: 3px; }
+  .language-suggestion:not([hidden]) { display: block; font-size: 12px; font-weight: 700; color: #17496a; text-underline-offset: 3px; }
+</style>

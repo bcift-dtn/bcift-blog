@@ -43,6 +43,23 @@ if($('logout')){
 
  const form=$<HTMLFormElement>('article-form'),body=$('body');
  const field=(name:string)=>form.elements.namedItem(name) as HTMLInputElement;
+ const translatedBody=$('translation-body');
+ const translationFields={title:$<HTMLInputElement>('translation-title'),description:$<HTMLTextAreaElement>('translation-description'),seoTitle:$<HTMLInputElement>('translation-seo'),imageAlt:$<HTMLInputElement>('translation-alt')};
+ const translationPublished=$<HTMLInputElement>('translation-published');
+ const generate=$<HTMLButtonElement>('generate-translation');
+ function translationSnapshot(){
+  return {title:translationFields.title.value,description:translationFields.description.value,seoTitle:translationFields.seoTitle.value,imageAlt:translationFields.imageAlt.value,body:translatedBody.innerHTML,published:translationPublished.checked};
+ }
+ function setTranslation(value:Partial<ReturnType<typeof translationSnapshot>>={}){
+  for(const key of Object.keys(translationFields) as Array<keyof typeof translationFields>)translationFields[key].value=value[key]??'';
+  translatedBody.innerHTML=value.body??'';
+  translationPublished.checked=!!value.published;
+ }
+ function translationLanguage(){
+  const target=field('language').value==='en'?'id':'en';
+  $('translation-language').textContent=target.toUpperCase();
+  translatedBody.lang=target;
+ }
  const coverEditor=initCoverEditor(document,markDirty);
  const slugify=(value:string)=>value.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,100).replace(/-$/,'');
  const categoryInputs=[...form.querySelectorAll<HTMLInputElement>('input[name="categories"]')];
@@ -54,7 +71,7 @@ if($('logout')){
   row.querySelector<HTMLButtonElement>('.remove-destination')!.onclick=()=>{row.remove();changed();};$('destination-trips').append(row);destinationFields();
  }
  function readTrips(){return [...$('destination-trips').querySelectorAll<HTMLElement>('.destination-row')].map(row=>({location:row.querySelector<HTMLInputElement>('[data-trip="location"]')!.value,minutes:row.querySelector<HTMLInputElement>('[data-trip="minutes"]')!.value,transport:row.querySelector<HTMLSelectElement>('[data-trip="transport"]')!.value})).filter(trip=>trip.location.trim()||trip.minutes);}
- function snapshot(){return JSON.stringify({...Object.fromEntries(new FormData(form)),body:body.innerHTML,image_focus:coverEditor.getValue(),categories:selectedCategories(),category:selectedCategories()[0],destination_trips:isDestination(selectedCategories())?readTrips():current?.destination_trips??[]});}
+ function snapshot(){return JSON.stringify({...Object.fromEntries(new FormData(form)),body:body.innerHTML,translation:translationSnapshot(),image_focus:coverEditor.getValue(),categories:selectedCategories(),category:selectedCategories()[0],destination_trips:isDestination(selectedCategories())?readTrips():current?.destination_trips??[]});}
  $('add-destination').onclick=()=>{if($('destination-trips').children.length>=20){notice('Maksimal 20 lokasi tujuan per artikel.',true);return;}addDestination();changed();};
  $('category-options').addEventListener('change',destinationFields);
  function markDirty(){dirty=true;$('save-state').textContent='Ada perubahan belum disimpan';}
@@ -84,6 +101,7 @@ if($('logout')){
   notice('');
   toolbar.reset();
   linkEditor.hide();coverEditor.setValue(article?.image_focus);current=article;form.reset();for(const name of ['title','slug','description','author','image','image_alt','seo_title','keywords'])if(article)field(name).value=article[name]||'';
+  field('language').value=article?.language==='en'?'en':'id';setTranslation(article?.translation);translationLanguage();
   const chosen=article?readCategories(article.categories,article.category):['Travel Guide'];categoryInputs.forEach(input=>input.checked=chosen.includes(input.value));
   $('destination-trips').replaceChildren();for(const trip of article?.destination_trips??[])addDestination(trip);destinationFields();
   form.inert=!isAdmin&&article?.status==='published';$<HTMLButtonElement>('save-draft').disabled=!isAdmin&&article?.status==='published';
@@ -116,22 +134,38 @@ if($('logout')){
  const toolbar=initEditorToolbar(body,document.querySelectorAll<HTMLButtonElement>('[data-command],[data-block]'),changed);
  const linkEditor=initLinkEditor(body,$('insert-link'),changed);
  const formatPaste=createPasteFormatter(window);
- body.addEventListener('paste',e=>{
+ for(const editor of [body,translatedBody])editor.addEventListener('paste',e=>{
   if(!e.clipboardData)return;
   e.preventDefault();
   try{
    const html=formatPaste({html:e.clipboardData.getData('text/html'),text:e.clipboardData.getData('text/plain')});
    if(!html)return;
-   body.focus();
+   editor.focus();
    if(!document.execCommand('insertHTML',false,html)){
     const selection=window.getSelection();
-    if(selection?.rangeCount&&body.contains(selection.anchorNode)){
+    if(selection?.rangeCount&&editor.contains(selection.anchorNode)){
      const range=selection.getRangeAt(0);range.deleteContents();const fragment=range.createContextualFragment(html);const last=fragment.lastChild;range.insertNode(fragment);if(last){range.setStartAfter(last);range.collapse(true);selection.removeAllRanges();selection.addRange(range);}
-    }else body.insertAdjacentHTML('beforeend',html);
+    }else editor.insertAdjacentHTML('beforeend',html);
    }
    changed();
   }catch(error){notice((error as Error).message,true);}
  });
+ field('language').addEventListener('change',()=>{translationPublished.checked=false;translationLanguage();});
+ generate.onclick=async()=>{
+  if(savingInProgress())return;
+  if(translationSnapshot().body&&!confirm('Ganti isi terjemahan yang ada di editor dengan draf baru?'))return;
+  const before=snapshot();
+  busy=true;generate.disabled=true;notice('Membuat draf terjemahan…');
+  try{
+   const result=await api('translation',{method:'POST',body:JSON.stringify({
+    language:field('language').value,title:field('title').value,description:field('description').value,
+    seoTitle:field('seo_title').value,imageAlt:field('image_alt').value,body:body.innerHTML
+   })});
+   if(snapshot()!==before){notice('Artikel berubah saat diterjemahkan. Buat ulang draf agar memakai isi terbaru.',true);return;}
+   setTranslation(result);markDirty();notice('Draf terjemahan siap diperiksa.');
+  }catch(error){notice((error as Error).message,true);}
+  finally{busy=false;generate.disabled=false;}
+ };
  $('suggest').onclick=()=>{const ignored=new Set('yang dan untuk dari dengan atau ke di the a an to from with and for of in how'.split(' '));const words=field('title').value.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu,'').split(/\s+/).filter(w=>w.length>2&&!ignored.has(w));field('keywords').value=[...new Set([words.slice(0,4).join(' '),...words.slice(0,5)])].filter(Boolean).join(', ');changed();};
  $('upload-cover').onclick=()=>{imageTarget='cover';$<HTMLInputElement>('file').click();};$('body-image').onmousedown=e=>e.preventDefault();$('body-image').onclick=()=>{imageTarget='body';const selection=window.getSelection();savedRange=selection?.rangeCount&&body.contains(selection.anchorNode)?selection.getRangeAt(0).cloneRange():null;$<HTMLInputElement>('file').click();};
  $('file').addEventListener('change',async()=>{const input=$<HTMLInputElement>('file'),file=input.files?.[0];if(!file)return;if(file.size>5*1024*1024){notice('Gambar maksimal 5 MB.',true);return;}try{notice('Mengupload gambar…');const result=await api('upload',{method:'POST',body:await file.arrayBuffer(),headers:{'Content-Type':file.type}});if(imageTarget==='cover'){field('image').value=result.url;cover();}else{const alt=prompt('Deskripsi gambar (alt):')||'';const img=document.createElement('img');img.src=result.url;img.alt=alt;body.focus();if(savedRange){const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(savedRange);}document.execCommand('insertHTML',false,img.outerHTML);}changed();notice('Gambar berhasil diupload.');}catch(e){notice((e as Error).message,true);}finally{input.value='';}});

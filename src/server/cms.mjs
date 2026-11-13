@@ -1,3 +1,4 @@
+import {languages} from '../lib/blog-language.mjs';
 import {articleLinkAttributes} from '../lib/article-links.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
@@ -22,7 +23,7 @@ CREATE TABLE IF NOT EXISTS articles(id INTEGER PRIMARY KEY, slug TEXT UNIQUE NOT
 CREATE TABLE IF NOT EXISTS media(id TEXT PRIMARY KEY, type TEXT NOT NULL, bytes BLOB NOT NULL);
 `);
 // Schema migration preserves existing articles and accounts. Old sessions require MFA.
-for(const [table,columns] of Object.entries({articles:{image_focus:"TEXT NOT NULL DEFAULT '{}'",categories:"TEXT NOT NULL DEFAULT '[]'",destination_trips:"TEXT NOT NULL DEFAULT '[]'"},admins:{role:"TEXT NOT NULL DEFAULT 'admin'",active:'INTEGER NOT NULL DEFAULT 1',managed_hash:'TEXT',mfa_secret:'TEXT',mfa_enabled:'INTEGER NOT NULL DEFAULT 0',mfa_last_step:'INTEGER NOT NULL DEFAULT -1',recovery:'TEXT NOT NULL DEFAULT \'[]\''},sessions:{verified:'INTEGER NOT NULL DEFAULT 0',last_seen:'INTEGER NOT NULL DEFAULT 0',verified_at:'INTEGER NOT NULL DEFAULT 0',failures:'INTEGER NOT NULL DEFAULT 0',pending_secret:'TEXT'}})){
+for(const [table,columns] of Object.entries({articles:{language:"TEXT NOT NULL DEFAULT 'id'",translation:"TEXT NOT NULL DEFAULT '{}'",image_focus:"TEXT NOT NULL DEFAULT '{}'",categories:"TEXT NOT NULL DEFAULT '[]'",destination_trips:"TEXT NOT NULL DEFAULT '[]'"},admins:{role:"TEXT NOT NULL DEFAULT 'admin'",active:'INTEGER NOT NULL DEFAULT 1',managed_hash:'TEXT',mfa_secret:'TEXT',mfa_enabled:'INTEGER NOT NULL DEFAULT 0',mfa_last_step:'INTEGER NOT NULL DEFAULT -1',recovery:'TEXT NOT NULL DEFAULT \'[]\''},sessions:{verified:'INTEGER NOT NULL DEFAULT 0',last_seen:'INTEGER NOT NULL DEFAULT 0',verified_at:'INTEGER NOT NULL DEFAULT 0',failures:'INTEGER NOT NULL DEFAULT 0',pending_secret:'TEXT'}})){
  const known=new Set(db.prepare(`PRAGMA table_info(${table})`).all().map(c=>c.name));
  for(const [name,type] of Object.entries(columns))if(!known.has(name))db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`);
 }
@@ -130,6 +131,16 @@ export function cleanBody(value) {
  return sanitize(normalizeArticleHtml(sanitize(value)));
 }
 const text = (value, max) => String(value ?? '').trim().slice(0, max);
+export function readTranslation(value) {
+ try {
+  const data = typeof value === 'string' ? JSON.parse(value) : value;
+  return {
+   title: text(data?.title,180), description: text(data?.description,500),
+   body: cleanBody(text(data?.body,200000)), seoTitle: text(data?.seoTitle,180),
+   imageAlt: text(data?.imageAlt,250), published: data?.published === true
+  };
+ } catch { return readTranslation({}); }
+}
 export function saveArticle(input, id) {
  const previous = id ? db.prepare('SELECT * FROM articles WHERE id=?').get(id) : null;
  if (id && !previous) throw new Error('Artikel tidak ditemukan.');
@@ -142,20 +153,25 @@ export function saveArticle(input, id) {
  const imageFocus = input.image_focus === undefined ? readImageFocus(previous?.image_focus) : validateImageFocus(input.image_focus);
  const destinationTrips = validateDestinationTrips(input.destination_trips ?? readDestinationTrips(previous?.destination_trips));
  const status = input.status === 'published' ? 'published' : 'draft';
+ const language = input.language ?? previous?.language ?? 'id';
+ if (!languages.includes(language)) throw new Error('Pilih Bahasa Indonesia atau English.');
+ const translation = readTranslation(input.translation ?? previous?.translation);
+ if (previous && previous.language !== language && input.translation === undefined) translation.published = false;
+ if (translation.published && (!translation.title || !translation.description || sanitizeHtml(translation.body,{allowedTags:[],allowedAttributes:{}}).trim().length < 40)) throw new Error('Lengkapi judul, ringkasan, dan isi terjemahan sebelum menerbitkannya.');
  if (!title || !slug) throw new Error('Judul dan slug wajib diisi.');
- if (['admin','media','sitemap','index','events','featured'].includes(slug)) throw new Error('Slug ini digunakan sistem. Pilih slug lain.');
+ if (['admin','media','sitemap','index','events','featured','en','id'].includes(slug) && previous?.slug !== slug) throw new Error('Slug ini digunakan sistem. Pilih slug lain.');
  if (image && !/^https:\/\/[^\s]+$/.test(image) && !/^\/(?:images\/[a-zA-Z0-9_.-]+|blog\/media\/[a-f0-9]{32}\/?)$/.test(image)) throw new Error('Gunakan gambar upload atau URL HTTPS.');
  if (status === 'published' && (!description || !image || !imageAlt || sanitizeHtml(body,{allowedTags:[],allowedAttributes:{}}).trim().length < 40)) throw new Error('Lengkapi ringkasan, gambar, alt gambar, dan isi artikel sebelum menerbitkan.');
  const now = new Date().toISOString();
- const values = [slug,title,description,category,JSON.stringify(selectedCategories),image,imageAlt,JSON.stringify(imageFocus),text(input.author,100)||'BCIFT Editorial',body,text(input.seo_title,180),text(input.keywords,500),JSON.stringify(destinationTrips),status,previous?.published_at || (status==='published'?now:null),now];
+ const values = [slug,title,description,category,JSON.stringify(selectedCategories),image,imageAlt,JSON.stringify(imageFocus),text(input.author,100)||'BCIFT Editorial',body,text(input.seo_title,180),text(input.keywords,500),JSON.stringify(destinationTrips),status,previous?.published_at || (status==='published'?now:null),now,language,JSON.stringify(translation)];
  try {
-  if(previous) db.prepare('UPDATE articles SET slug=?,title=?,description=?,category=?,categories=?,image=?,image_alt=?,image_focus=?,author=?,body=?,seo_title=?,keywords=?,destination_trips=?,status=?,published_at=?,updated_at=? WHERE id=?').run(...values,id);
-  else id = Number(db.prepare('INSERT INTO articles(slug,title,description,category,categories,image,image_alt,image_focus,author,body,seo_title,keywords,destination_trips,status,published_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(...values).lastInsertRowid);
+  if(previous) db.prepare('UPDATE articles SET slug=?,title=?,description=?,category=?,categories=?,image=?,image_alt=?,image_focus=?,author=?,body=?,seo_title=?,keywords=?,destination_trips=?,status=?,published_at=?,updated_at=?,language=?,translation=? WHERE id=?').run(...values,id);
+  else id = Number(db.prepare('INSERT INTO articles(slug,title,description,category,categories,image,image_alt,image_focus,author,body,seo_title,keywords,destination_trips,status,published_at,updated_at,language,translation) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(...values).lastInsertRowid);
  } catch(error) { if(String(error).includes('UNIQUE')) throw new Error('Slug sudah digunakan artikel lain.'); throw error; }
  const saved=db.prepare('SELECT * FROM articles WHERE id=?').get(id);
- return {...saved,image_focus:readImageFocus(saved.image_focus),categories:readCategories(saved.categories,saved.category),destination_trips:readDestinationTrips(saved.destination_trips)};
+ return {...saved,translation:readTranslation(saved.translation),image_focus:readImageFocus(saved.image_focus),categories:readCategories(saved.categories,saved.category),destination_trips:readDestinationTrips(saved.destination_trips)};
 }
-export function asPost(row) { return { id:row.slug, cms:true, body:cleanBody(row.body), data:{imageFocus:readImageFocus(row.image_focus),categories:readCategories(row.categories,row.category),destinationTrips:readDestinationTrips(row.destination_trips),title:row.title,description:row.description,category:row.category,image:mediaUrl(row.image) || '/images/terminal.webp',imageAlt:row.image_alt,author:row.author,draft:row.status!=='published',featured:false,seoTitle:row.seo_title,keywords:row.keywords,publishedAt:row.published_at?new Date(row.published_at):undefined,updatedAt:new Date(row.updated_at)} }; }
+export function asPost(row) { return { id:row.slug, cms:true, language:row.language, translation:readTranslation(row.translation), body:cleanBody(row.body), data:{imageFocus:readImageFocus(row.image_focus),categories:readCategories(row.categories,row.category),destinationTrips:readDestinationTrips(row.destination_trips),title:row.title,description:row.description,category:row.category,image:mediaUrl(row.image) || '/images/terminal.webp',imageAlt:row.image_alt,author:row.author,draft:row.status!=='published',featured:false,seoTitle:row.seo_title,keywords:row.keywords,publishedAt:row.published_at?new Date(row.published_at):undefined,updatedAt:new Date(row.updated_at)} }; }
 export function articleBody(body) {
  body=cleanBody(body);
  const headings=[];

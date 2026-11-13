@@ -1,13 +1,15 @@
 ---
+import {blogPath} from '../lib/blog-language.mjs';
+const {language='en'}=Astro.props;
 const links = [
   {href:'https://bcift.co.id/schedule',label:'Ferry schedules'},
   {href:'https://bcift.co.id/ferry-operator',label:'Ferry operators'},
   {href:'https://bcift.co.id/tenants',label:'Terminal shops & dining'},
-  {href:'/blog/',label:'All travel stories'},
+  {href:blogPath(language),label:'All travel stories'},
 ];
 const directions='https://www.google.com/maps/search/?api=1&query=Batam+Center+International+Ferry+Terminal';
 ---
-<footer class="official-footer">
+<footer class="official-footer" lang="en">
   <div class="footer-container">
     <section class="footer-intro" aria-label="About BCIFT">
       <a class="footer-brand" href="https://bcift.co.id/"><span>Batam Center</span><span>International Ferry Terminal</span></a>

@@ -1,0 +1,56 @@
+---
+import {createAnalyticsToken} from '../server/analytics.mjs';
+import {render} from 'astro:content';
+import BlogLanguage from './BlogLanguage.astro';
+import Base from '../layouts/Base.astro';
+import Card from '../components/Card.astro';
+import {readImageFocus,thumbnailStyle} from '../lib/image-focus.mjs';
+import HeroWave from '../components/HeroWave.astro';
+import Banner from '../components/Banner.astro';
+import DestinationTrips from '../components/DestinationTrips.astro';
+import {isDestination} from '../lib/destination-trips.mjs';
+import SideIcon from '../components/SideIcon.astro';
+import {articlePaths} from '../lib/posts';
+import {postCategories} from '../lib/categories.mjs';
+import {articleBody} from '../server/cms.mjs';
+import {blogCategory,blogPath} from '../lib/blog-language.mjs';
+const {post,related,language,languagePaths,preview}=Astro.props;
+const id=language==='id';
+const home=blogPath(language);
+const category=data=>postCategories(data).map(value=>blogCategory(value,language)).join(' · ');
+const rendered=post.cms?null:await render(post);
+const Content=rendered?.Content;
+const cmsBody=post.cms?articleBody(post.body):null;
+const destinationTrips=isDestination(postCategories(post.data))?post.data.destinationTrips??[]:[];
+const headings=cmsBody?.headings??rendered?.headings??[];
+const imageFocus=readImageFocus(post.data.imageFocus);
+const url=new URL(Astro.url.pathname,Astro.site).href;
+const schema={'@context':'https://schema.org','@graph':[{'@type':'BlogPosting',articleSection:postCategories(post.data),headline:post.data.title,keywords:post.data.keywords||undefined,description:post.data.description,image:new URL(post.data.image,Astro.site).href,mainEntityOfPage:url,inLanguage:language,author:{'@type':'Organization',name:post.data.author},publisher:{'@type':'Organization',name:'BCIFT',url:'https://bcift.co.id'},...(post.data.publishedAt?{datePublished:post.data.publishedAt.toISOString()}:{}),...(post.data.updatedAt?{dateModified:post.data.updatedAt.toISOString()}:{} )},{'@type':'BreadcrumbList',itemListElement:[{'@type':'ListItem',position:1,name:'Home',item:'https://bcift.co.id/'},{'@type':'ListItem',position:2,name:'Blog',item:new URL(home,Astro.site).href},{'@type':'ListItem',position:3,name:post.data.title,item:url}]}]};
+---
+<Base language={language} languagePaths={languagePaths} analyticsToken={!post.data.draft&&!preview?createAnalyticsToken(post.id):undefined} title={post.data.seoTitle||post.data.title} description={post.data.description} image={post.data.image} noindex={post.data.draft||preview} article schema={schema} imageAlt={post.data.imageAlt} publishedAt={post.data.publishedAt} updatedAt={post.data.updatedAt}>
+<div class="blog-hero article-cover-hero" style={`--cover-x:${imageFocus.desktop.x}%;--cover-y:${imageFocus.desktop.y}%;--cover-mobile-x:${imageFocus.mobile.x}%;--cover-mobile-y:${imageFocus.mobile.y}%`}><img src={post.data.image} alt={post.data.imageAlt} width="1600" height="900" fetchpriority="high"/><HeroWave/></div>
+<div class="article-wrap article-wide">
+<div class="article-columns">
+<article class="article-main">
+<div class="article-topline"><nav class="crumb" aria-label={id?'Jejak navigasi':'Breadcrumb'}><a href="https://bcift.co.id/">{id?"Beranda":"Home"}</a> / <a href={home}>Blog</a> / <span>{category(post.data)}</span></nav><BlogLanguage language={language} paths={languagePaths}/></div>
+<span class="tag">{category(post.data)}</span><h1>{post.data.title}</h1>
+<div class="article-meta"><span class="meta">{post.data.author}{post.data.publishedAt&&<> · <time datetime={post.data.publishedAt.toISOString()}>{post.data.publishedAt.toLocaleDateString(id?'id-ID':'en-GB',{timeZone:'UTC',day:'numeric',month:'long',year:'numeric'})}</time></>}{post.data.draft&&(id?' · Pratinjau draf':' · Draft preview')}</span></div>
+{destinationTrips.length>0&&<DestinationTrips trips={destinationTrips} language={language} class="destination-mobile"/>}
+{headings.some(h=>h.depth===2)&&<details class="mobile-article-toc"><summary>{id?"Dalam artikel ini":"In this article"}</summary><ol>{headings.filter(h=>h.depth===2).map(h=><li><a href={'#'+h.slug}>{h.text.replace(/^\d+\.\s*/, '')}</a></li>)}</ol></details>}<div class="article-body">{cmsBody?<Fragment set:html={cmsBody.html}/>:Content&&<Content/>}</div>
+</article>
+<aside class="article-sidebar" aria-label={id?'Informasi artikel':'Article resources'}>
+{destinationTrips.length>0&&<DestinationTrips trips={destinationTrips} language={language} class="destination-desktop"/>}
+{headings.some(h=>h.depth===2)&&<section class="sidebar-panel"><h2><SideIcon kind="list"/>{id?"Daftar isi":"Table of contents"}</h2><ol class="toc-list">{headings.filter(h=>h.depth===2).map((h,i)=><li><a href={'#'+h.slug}><span>{i+1}</span>{h.text.replace(/^\d+\.\s*/, '')}</a></li>)}</ol></section>}
+<section class="sidebar-panel"><h2><SideIcon/>{id?"Informasi singkat":"Quick information"}</h2><dl class="quick-facts">{(post.data.quickInfo??[{label:id?'Topik':'Topic',value:category(post.data)},{label:'Terminal',value:'Batam Center'},{label:id?'Persiapan':'Planning',value:id?'Cek informasi terbaru dari operator':'Check current operator information'}]).map((fact,i)=><div><SideIcon kind={['route','pin','pin','clock'][i%4]}/><div><dt>{fact.label}</dt><dd>{fact.value}</dd></div></div>)}</dl><p class="sidebar-note">{id?"Konfirmasikan informasi terbaru dengan operator feri sebelum berangkat.":"Confirm current details with your ferry operator before travelling."}</p></section>
+<section class="sidebar-panel"><h2><SideIcon kind="link"/>{id?"Tautan berguna":"Useful links"}</h2><ul class="useful-links"><li><a href="https://bcift.co.id/schedule">{id?"Jadwal feri":"Ferry schedule"} <span>›</span></a></li><li><a href="https://bcift.co.id/ferry-operator">{id?"Operator feri":"Ferry operators"} <span>›</span></a></li><li><a href="https://bcift.co.id/">{id?"Informasi terminal":"Terminal information"} <span>›</span></a></li><li><a href={home}>{id?"Panduan perjalanan lainnya":"More travel guides"} <span>›</span></a></li></ul></section>
+{related.length>0&&<section class="sidebar-panel"><h2><SideIcon kind="article"/>{id?"Jelajahi lainnya":"More to explore"}</h2><div class="sidebar-stories">{related.map(p=><a data-stat-click={createAnalyticsToken(p.id,'click')} href={articlePaths(p)[language]}><img style={thumbnailStyle(p.data.imageFocus)} src={p.data.image} alt={p.data.imageAlt} width="100" height="84" loading="lazy"/><div><span class="tag">{category(p.data)}</span><h3>{p.data.title}</h3></div></a>)}</div></section>}
+</aside>
+</div>
+<Banner/>
+<section class="related"><div class="section-heading"><h2>{id?"Artikel terkait":"Related Articles"}</h2><a class="read" href={home}>{id?"Lihat semua →":"View all →"}</a></div><div class="grid">{related.map(p=><Card post={p} language={language}/>)}</div></section>
+</div></Base>
+
+<style>
+.article-topline { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 12px; }
+.article-topline .crumb { margin: 6px 0 0; }
+</style>

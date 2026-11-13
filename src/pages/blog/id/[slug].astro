@@ -1,0 +1,11 @@
+---
+import BlogArticle from '../../../components/BlogArticle.astro';
+import {getBlogArticle} from '../../../lib/blog-article';
+import {authenticated} from '../../../server/cms.mjs';
+
+const preview=Astro.url.searchParams.has('preview')&&authenticated(Astro.cookies.get('bcift_session')?.value);
+const article=await getBlogArticle(Astro.params.slug,"id",preview);
+if (!article) return new Response('Article not found',{status:404,headers:{'X-Robots-Tag':'noindex'}});
+Astro.response.headers.set('Cache-Control','no-store');
+---
+<BlogArticle {...article}/>

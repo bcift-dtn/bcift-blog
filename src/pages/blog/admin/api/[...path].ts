@@ -1,3 +1,4 @@
+import {generateTranslation} from '../../../../server/translation.mjs';
 import {homepageData} from '../../../../lib/homepage';
 import {posts} from '../../../../lib/posts';
 import {saveHomepage} from '../../../../server/homepage.mjs';
@@ -5,7 +6,7 @@ import {analyticsSummary} from '../../../../server/analytics.mjs';
 import {mediaUrl} from '../../../../lib/media-url.mjs';
 import type { APIRoute } from 'astro';
 import {randomBytes} from 'node:crypto';
-import {db,hasAdmin,ensureConfiguredAccounts,login,logout,currentUser,saveArticle,cleanBody,inviteMember,invitationInfo,acceptInvitation,updateMember,createTeamAccount,audit} from '../../../../server/cms.mjs';
+import {db,hasAdmin,ensureConfiguredAccounts,login,logout,currentUser,saveArticle,cleanBody,readTranslation,inviteMember,invitationInfo,acceptInvitation,updateMember,createTeamAccount,audit} from '../../../../server/cms.mjs';
 import {readImageFocus} from '../../../../lib/image-focus.mjs';
 import {readCategories} from '../../../../lib/categories.mjs';
 import {readDestinationTrips} from '../../../../lib/destination-trips.mjs';
@@ -37,8 +38,9 @@ export const ALL:APIRoute=async({request,params,cookies,clientAddress})=>{
   if(!user)return json({error:'Silakan login kembali.'},401);
   if(path==='homepage'){if(user.role!=='admin')return json({error:'Hanya Admin yang dapat mengatur halaman utama.'},403);if(method==='GET')return json(await homepageData());if(method==='POST'){saveHomepage(user,await input(),await posts());return json(await homepageData());}}
   if(path==='analytics'&&method==='GET'){if(user.role!=='admin')return json({error:'Statistik hanya tersedia untuk Admin.'},403);const days=Number(new URL(request.url).searchParams.get('days')||7);return json(analyticsSummary(days));}
-  if(path==='articles'&&method==='GET')return json(db.prepare('SELECT * FROM articles ORDER BY updated_at DESC').all().map((article:any)=>({...article,image_focus:readImageFocus(article.image_focus),categories:readCategories(article.categories,article.category),destination_trips:readDestinationTrips(article.destination_trips),image:mediaUrl(article.image),body:cleanBody(article.body)})));
-  if(path==='articles'&&method==='POST'){const data=await input(250000);if(data.status==='published'&&user.role!=='admin')return json({error:'Editorial/Penulis menyimpan draft. Penerbitan dilakukan Admin.'},403);const previous=data.id?db.prepare('SELECT status FROM articles WHERE id=?').get(Number(data.id)) as {status:string}|undefined:null;if(previous?.status==='published'&&user.role!=='admin')return json({error:'Perubahan artikel yang sudah terbit hanya dapat dilakukan admin.'},403);const result=saveArticle(data,data.id?Number(data.id):undefined);audit(user.id,'article.saved',result.slug);return json(result);}
+  if(path==='translation'&&method==='POST')return json(await generateTranslation(await input(160000)));
+  if(path==='articles'&&method==='GET')return json(db.prepare('SELECT * FROM articles ORDER BY updated_at DESC').all().map((article:any)=>({...article,image_focus:readImageFocus(article.image_focus),categories:readCategories(article.categories,article.category),destination_trips:readDestinationTrips(article.destination_trips),image:mediaUrl(article.image),body:cleanBody(article.body),translation:readTranslation(article.translation)})));
+  if(path==='articles'&&method==='POST'){const data=await input(550000);if(data.status==='published'&&user.role!=='admin')return json({error:'Editorial/Penulis menyimpan draft. Penerbitan dilakukan Admin.'},403);const previous=data.id?db.prepare('SELECT status FROM articles WHERE id=?').get(Number(data.id)) as {status:string}|undefined:null;if(previous?.status==='published'&&user.role!=='admin')return json({error:'Perubahan artikel yang sudah terbit hanya dapat dilakukan admin.'},403);const result=saveArticle(data,data.id?Number(data.id):undefined);audit(user.id,'article.saved',result.slug);return json(result);}
   if(/^articles\/\d+$/.test(path)&&method==='DELETE'){if(user.role!=='admin')return json({error:'Hanya admin yang dapat menghapus artikel.'},403);db.prepare('DELETE FROM articles WHERE id=?').run(Number(path.split('/')[1]));audit(user.id,'article.deleted',path);return json({ok:true});}
   if(path==='upload'&&method==='POST'){
    const bytes=Buffer.from(await request.arrayBuffer());if(!bytes.length||bytes.length>5*1024*1024)throw new Error('Gambar maksimal 5 MB.');

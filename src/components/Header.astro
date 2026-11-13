@@ -1,12 +1,14 @@
 
 ---
+import {blogPath} from '../lib/blog-language.mjs';
+const {language='id'}=Astro.props;
 const currentPath = Astro.url.pathname;
 const isBlogPage =
   currentPath === "/blog" ||
   currentPath.startsWith("/blog/");
 ---
 
-<header class="bcift-header">
+<header class="bcift-header" lang="en">
   <nav class="bcift-nav" aria-label="Main navigation">
     <a href="https://bcift.co.id/" class="bcift-logo">
       <img
@@ -61,7 +63,7 @@ const isBlogPage =
 
       <li>
         <a
-          href="/blog/"
+          href={blogPath(language)}
           aria-current={isBlogPage ? "page" : undefined}
         >
           Blog
